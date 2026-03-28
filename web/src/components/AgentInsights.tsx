@@ -7,12 +7,10 @@ import { useEffect, useState } from "react";
 export function AgentInsights({
   text,
   ecoZScore,
-  ecoZScoreAlert,
   fromLlm,
 }: {
   text: string;
   ecoZScore?: number | null;
-  ecoZScoreAlert?: boolean;
   fromLlm?: boolean;
 }) {
   const [shown, setShown] = useState("");
@@ -51,14 +49,10 @@ export function AgentInsights({
         {ecoZScore != null && Number.isFinite(ecoZScore) ? (
           <>
             Eco-efficiency z-score:{" "}
-            <span
-              className={`tabular-nums ${ecoZScoreAlert ? "font-semibold text-amber-300" : "text-slate-300"}`}
-            >
+            <span className="tabular-nums text-slate-300">
               {ecoZScore.toFixed(2)}σ
             </span>
-            {ecoZScoreAlert
-              ? " — grid signal is unusually strong vs your recent baseline."
-              : " — agent summary follows."}
+            {" — agent summary follows."}
           </>
         ) : (
           <>
@@ -68,11 +62,7 @@ export function AgentInsights({
         )}
       </p>
       <motion.div
-        className={`flex flex-1 rounded-xl border bg-gradient-to-br p-4 text-sm leading-relaxed text-slate-200 ${
-          ecoZScoreAlert === true
-            ? "border-amber-500/55 from-amber-950/35 to-slate-900/60 shadow-[0_0_28px_rgba(245,158,11,0.12)]"
-            : "border-emerald-500/20 from-emerald-950/40 to-slate-900/60"
-        }`}
+        className="flex flex-1 rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/40 to-slate-900/60 p-4 text-sm leading-relaxed text-slate-200"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}

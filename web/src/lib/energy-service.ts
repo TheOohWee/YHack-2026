@@ -6,6 +6,18 @@ import {
 } from "@/lib/quant-compute";
 import type { EnergyLogPoint, EnergySnapshot } from "@/types/energy";
 
+function formatLastPolledLabel(minutesAgo: number | null): string {
+  if (minutesAgo == null) return "No polls yet";
+  if (minutesAgo < 1) return "just now";
+  if (minutesAgo < 60) return `${Math.round(minutesAgo)}m ago`;
+  const hours = Math.floor(minutesAgo / 60);
+  const minutes = Math.round(minutesAgo % 60);
+  if (hours < 24) return `${hours}h ${minutes}m ago`;
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return `${days}d ${remHours}h ago`;
+}
+
 function docToPoint(doc: Record<string, unknown>): EnergyLogPoint | null {
   const ts = doc.timestamp;
   if (!ts) return null;
@@ -41,7 +53,7 @@ function docToPoint(doc: Record<string, unknown>): EnergyLogPoint | null {
     eco_efficiency_score:
       typeof doc.eco_efficiency_score === "number"
         ? doc.eco_efficiency_score
-        : undefined,
+        : null,
     z_score: typeof doc.z_score === "number" ? doc.z_score : undefined,
     gridstatus_ok:
       typeof doc.gridstatus_ok === "boolean" ? doc.gridstatus_ok : undefined,
@@ -114,6 +126,7 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
   const lastPollMinutesAgo =
     lastTs != null ? (Date.now() - lastTs) / 60000 : null;
   const active = lastPollMinutesAgo !== null && lastPollMinutesAgo < 20;
+  const lastPolledLabel = formatLastPolledLabel(lastPollMinutesAgo);
 
   const currentScore = latest?.eco_efficiency_score ?? 0;
   const dialPercent = normalizeDialPercent(logs, currentScore);
@@ -137,7 +150,6 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     latest?.z_score != null && Number.isFinite(latest.z_score)
       ? latest.z_score
       : null;
-  const ecoZScoreAlert = ecoZ !== null && ecoZ > 2;
 
   const stats = {
     total_carbon_saved_kg: Number(
@@ -159,11 +171,11 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     insight,
     insightFromLlm,
     ecoZScore: ecoZ,
-    ecoZScoreAlert,
     status: {
       active,
       lastPollMinutesAgo:
         lastPollMinutesAgo !== null ? Math.round(lastPollMinutesAgo) : null,
+      lastPolledLabel,
     },
   };
 }

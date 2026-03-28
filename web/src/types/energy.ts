@@ -9,7 +9,7 @@ export type EnergyLogPoint = {
   other_pct: number;
   price_cents: number;
   renewable_pct?: number;
-  eco_efficiency_score?: number;
+  eco_efficiency_score: number | null;
   z_score?: number | null;
   gridstatus_ok?: boolean;
 };
@@ -31,12 +31,11 @@ export type EnergySnapshot = {
   insight: string;
   /** Eco-efficiency z-score from latest log (vs recent poll history). */
   ecoZScore: number | null;
-  /** Latest eco z-score strictly above 2 — high-contrast bento alert. */
-  ecoZScoreAlert: boolean;
   /** True when `insight` comes from Mongo `social_message` / `llm_analysis`. */
   insightFromLlm: boolean;
   status: {
     active: boolean;
     lastPollMinutesAgo: number | null;
+    lastPolledLabel: string;
   };
 };

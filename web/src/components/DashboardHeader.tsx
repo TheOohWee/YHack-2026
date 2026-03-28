@@ -6,9 +6,11 @@ import { motion } from "framer-motion";
 export function DashboardHeader({
   active,
   lastPollMinutesAgo,
+  lastPolledLabel,
 }: {
   active: boolean;
   lastPollMinutesAgo: number | null;
+  lastPolledLabel: string;
 }) {
   return (
     <header className="mb-6 flex flex-col gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center sm:justify-between">
@@ -33,8 +35,11 @@ export function DashboardHeader({
             aria-hidden
           />
           <span>{active ? "Agent active · polling" : "Awaiting fresh poll"}</span>
-          {lastPollMinutesAgo != null && (
-            <span className="text-slate-500">· {lastPollMinutesAgo}m ago</span>
+          <span className="text-slate-500">· Last polled {lastPolledLabel}</span>
+          {!active && lastPollMinutesAgo !== null && lastPollMinutesAgo >= 20 && (
+            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-300">
+              stale
+            </span>
           )}
         </motion.div>
         {active && (

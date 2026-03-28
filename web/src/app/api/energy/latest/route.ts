@@ -24,7 +24,6 @@ export async function GET(req: NextRequest) {
       goldenWindows: snap.goldenWindows,
       insight: snap.insight,
       ecoZScore: snap.ecoZScore,
-      ecoZScoreAlert: snap.ecoZScoreAlert,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";

@@ -12,25 +12,13 @@ import {
 const EMERALD = "#10B981";
 const TRACK = "#1e293b";
 
-export function EfficiencyDial({
-  snapshot,
-  alert,
-}: {
-  snapshot: EnergySnapshot;
-  alert?: boolean;
-}) {
+export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
   const pct = Math.round(snapshot.dialPercent);
   const score = snapshot.latest?.eco_efficiency_score ?? 0;
   const data = [{ name: "efficiency", value: pct, fill: EMERALD }];
-  const ring =
-    alert === true
-      ? "ring-2 ring-amber-400/90 ring-offset-2 ring-offset-slate-900/80"
-      : "";
 
   return (
-    <div
-      className={`relative flex h-full min-h-[240px] flex-col rounded-xl transition-shadow ${ring}`}
-    >
+    <div className="relative flex h-full min-h-[240px] flex-col rounded-xl">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold tracking-wide text-slate-200">
           Efficiency score
@@ -47,7 +35,7 @@ export function EfficiencyDial({
             <span className="tabular-nums text-slate-300">
               {snapshot.ecoZScore.toFixed(2)}
             </span>
-            {snapshot.ecoZScoreAlert ? " — unusual spike." : "."}
+            .
           </>
         ) : null}
       </p>
