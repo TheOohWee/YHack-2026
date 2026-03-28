@@ -24,9 +24,6 @@ export function Sidebar() {
         </div>
         <div>
           <p className="text-sm font-semibold text-slate-100">WattsUp</p>
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Quant → care
-          </p>
         </div>
       </div>
       <nav className="flex flex-1 flex-col gap-1" aria-label="Primary">

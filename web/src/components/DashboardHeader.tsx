@@ -16,10 +16,6 @@ export function DashboardHeader({
         <h1 className="text-xl font-semibold tracking-tight text-slate-100 sm:text-2xl">
           Energy command center
         </h1>
-        <p className="mt-1 max-w-2xl text-sm text-slate-400">
-          Real-time quant signals translated into calm, actionable insight —
-          savings and carbon, side by side.
-        </p>
       </div>
       <div className="flex items-center gap-3">
         <motion.div
