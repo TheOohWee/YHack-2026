@@ -1,6 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import Navbar from "../../components/Navbar";
+
+// Lazy-load recharts to avoid SSR issues
+const PieChart = dynamic(() => import("recharts").then((m) => m.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then((m) => m.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then((m) => m.Cell), { ssr: false });
+const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
+
+const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"];
+
+const EFFORT_BADGE = {
+  low: { label: "Easy", color: "bg-green-100 text-green-700" },
+  medium: { label: "Moderate", color: "bg-amber-100 text-amber-700" },
+  high: { label: "Major Project", color: "bg-red-100 text-red-700" },
+};
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -8,114 +29,243 @@ export default function ResultsPage() {
 
   useEffect(() => {
     const raw = sessionStorage.getItem("wattwise_results");
-    if (!raw) { router.push("/onboarding"); return; }
+    if (!raw) {
+      router.push("/onboarding");
+      return;
+    }
     setData(JSON.parse(raw));
   }, [router]);
 
-  if (!data) return <div className="spinner" style={{ marginTop: 120 }} />;
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-brand-500 rounded-full animate-spin-slow" />
+      </div>
+    );
+  }
 
   const { home, estimate, recommendations } = data;
 
+  // Prepare chart data
+  const breakdownData = Object.entries(estimate.breakdown || {})
+    .filter(([, v]) => v > 0)
+    .map(([key, value]) => ({
+      name: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      value,
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const savingsData = recommendations.map((r) => ({
+    name: r.title.length > 20 ? r.title.slice(0, 20) + "..." : r.title,
+    savings: r.estimated_annual_savings,
+    carbon: r.estimated_carbon_reduction_kg,
+  }));
+
+  const treesEquiv = estimate.carbon_trees_equivalent || 0;
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--gray-50)" }}>
-      <nav style={{ padding: "16px 24px", background: "#fff", borderBottom: "1px solid var(--gray-200)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: "var(--green-600)" }}>
-          <span style={{ marginRight: 6 }}>&#9889;</span>WattWise
-        </div>
-        <button className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }} onClick={() => router.push("/onboarding")}>
-          New Analysis
-        </button>
-      </nav>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar
+        actions={
+          <>
+            <button
+              onClick={() => router.push("/simulator")}
+              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700 transition"
+            >
+              What-If Simulator
+            </button>
+            <button
+              onClick={() => router.push("/onboarding")}
+              className="text-gray-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+            >
+              New Analysis
+            </button>
+          </>
+        }
+      />
 
-      <div className="container" style={{ paddingTop: 40, paddingBottom: 60 }}>
-        {/* Summary stats */}
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }} className="fade-in">Your Energy Profile</h2>
+      <div className="max-w-5xl mx-auto px-6 pt-8 pb-20">
+        {/* Hero stats */}
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 animate-fade-up">
+          Your Energy Profile
+        </h1>
 
-        <div className="stat-grid fade-in" style={{ marginBottom: 40 }}>
-          <div className="stat-box">
-            <div className="stat-value">{estimate.kwhPerMonth.toLocaleString()}</div>
-            <div className="stat-label">kWh / month</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-value" style={{ color: "var(--amber-500)" }}>${estimate.monthlyCost}</div>
-            <div className="stat-label">estimated cost / month</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-value" style={{ color: "var(--gray-600)" }}>{estimate.carbonKgPerMonth}</div>
-            <div className="stat-label">kg CO&#8322; / month</div>
-          </div>
-        </div>
-
-        {/* Home details chip */}
-        <div className="card fade-in" style={{ marginBottom: 40, display: "flex", flexWrap: "wrap", gap: 12 }}>
-          {[
-            `${home.sqft.toLocaleString()} sq ft`,
-            `${home.bedrooms} bed`,
-            `Built ${home.yearBuilt}`,
-            home.heating + " heat",
-            home.hasAC && "AC",
-            home.hasSolar && "Solar",
-            home.hasPool && "Pool",
-          ].filter(Boolean).map((tag) => (
-            <span key={tag} style={{ padding: "6px 14px", background: "var(--green-50)", borderRadius: 20, fontSize: 13, fontWeight: 600, color: "var(--green-700)" }}>
-              {tag}
-            </span>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-fade-up">
+          <StatCard value={estimate.kwh_per_month.toLocaleString()} unit="kWh/mo" label="Electricity" color="text-brand-600" />
+          <StatCard value={estimate.therms_per_month} unit="therms/mo" label="Natural Gas" color="text-blue-600" />
+          <StatCard value={`$${estimate.total_monthly_cost}`} label="Estimated Cost" color="text-amber-600" />
+          <StatCard value={estimate.carbon_kg_per_month} unit="kg" label="CO₂/month" color="text-gray-600" />
         </div>
 
-        {/* Breakdown */}
-        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }} className="fade-in">Cost Breakdown</h3>
-        <div className="card fade-in" style={{ marginBottom: 40 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <span>Electricity ({estimate.kwhPerMonth} kWh)</span>
-            <strong>${estimate.electricCost}/mo</strong>
-          </div>
-          {estimate.thermsPerMonth > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-              <span>Gas ({estimate.thermsPerMonth} therms)</span>
-              <strong>${estimate.gasCost}/mo</strong>
+        {/* Carbon equivalence */}
+        <div className="bg-brand-50 border border-brand-100 rounded-2xl p-5 mb-8 animate-fade-up-delay">
+          <p className="text-brand-800 text-sm">
+            <strong>Your carbon footprint</strong> of {estimate.carbon_kg_per_month} kg CO₂/month is equivalent to{" "}
+            <strong>{treesEquiv} trees needed per year</strong> to offset, or driving{" "}
+            <strong>{Math.round(estimate.carbon_kg_per_month * 12 / 0.404).toLocaleString()} miles/year</strong> in a gas car.
+          </p>
+        </div>
+
+        {/* Charts row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10 animate-fade-up-delay">
+          {/* Breakdown pie */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 className="font-bold text-gray-900 mb-4">Energy Breakdown</h3>
+            {breakdownData.length > 0 && (
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie data={breakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3}>
+                    {breakdownData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => `${v} kWh-eq`} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+            <div className="flex flex-wrap gap-3 mt-2">
+              {breakdownData.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                  {d.name}
+                </div>
+              ))}
             </div>
-          )}
-          <hr style={{ border: "none", borderTop: "1px solid var(--gray-200)", margin: "12px 0" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 18 }}>
-            <span>Total</span>
-            <span>${estimate.monthlyCost}/mo</span>
+          </div>
+
+          {/* Cost breakdown */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 className="font-bold text-gray-900 mb-4">Monthly Cost Breakdown</h3>
+            <div className="space-y-4 mt-6">
+              <CostRow label="Electricity" detail={`${estimate.kwh_per_month.toLocaleString()} kWh`} amount={estimate.electric_cost} />
+              {estimate.therms_per_month > 0 && (
+                <CostRow label="Natural Gas" detail={`${estimate.therms_per_month} therms`} amount={estimate.gas_cost} />
+              )}
+              <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
+                <span className="font-bold text-gray-900 text-lg">Total</span>
+                <span className="font-bold text-gray-900 text-xl">${estimate.total_monthly_cost}/mo</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                ${(estimate.total_monthly_cost * 12).toLocaleString()}/year estimated
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Home profile chips */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-10 animate-fade-up-delay-2">
+          <h3 className="font-bold text-gray-900 mb-3 text-sm">Detected Home Profile</h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              home.sqft && `${home.sqft.toLocaleString()} sq ft`,
+              home.bedrooms && `${home.bedrooms} bed`,
+              home.bathrooms && `${home.bathrooms} bath`,
+              home.year_built && `Built ${home.year_built}`,
+              home.heating_type && `${home.heating_type.replace(/_/g, " ")} heat`,
+              home.cooling_type && home.cooling_type !== "none" && home.cooling_type.replace(/_/g, " "),
+              home.has_solar && "Solar",
+              home.has_pool && "Pool",
+              home.has_ev && "EV",
+              home.zip_code && `ZIP ${home.zip_code}`,
+            ]
+              .filter(Boolean)
+              .map((tag) => (
+                <span key={tag} className="px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-semibold">
+                  {tag}
+                </span>
+              ))}
           </div>
         </div>
 
         {/* Recommendations */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }} className="fade-in">
-          <h3 style={{ fontSize: 20, fontWeight: 700 }}>Top Recommendations</h3>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 40 }}>
-          {recommendations.map((rec, i) => (
-            <div key={rec.id} className="card fade-in" style={{ borderLeft: `4px solid ${i === 0 ? "var(--green-500)" : i === 1 ? "var(--blue-500)" : "var(--amber-500)"}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 8 }}>
-                <h4 style={{ fontSize: 17, fontWeight: 700 }}>
-                  #{i + 1} {rec.title}
-                </h4>
-                {rec.estimatedAnnualSaving && (
-                  <span style={{ fontWeight: 700, color: "var(--green-600)", fontSize: 15, whiteSpace: "nowrap" }}>
-                    ~${rec.estimatedAnnualSaving}/yr saved
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 animate-fade-up-delay-2">
+          Top Recommendations
+        </h2>
+        <div className="space-y-4 mb-10">
+          {recommendations.map((rec, i) => {
+            const badge = EFFORT_BADGE[rec.effort_level] || EFFORT_BADGE.medium;
+            return (
+              <div
+                key={rec.rank || i}
+                className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow animate-fade-up-delay-2"
+                style={{ borderLeftWidth: 4, borderLeftColor: COLORS[i] }}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-400">#{i + 1}</span>
+                    <h3 className="font-bold text-gray-900">{rec.title}</h3>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  <span className="text-brand-600 font-bold whitespace-nowrap">
+                    ~${rec.estimated_annual_savings?.toLocaleString()}/yr
                   </span>
-                )}
+                </div>
+                <p className="text-gray-500 text-sm mb-3">{rec.description}</p>
+                <div className="flex flex-wrap gap-4 text-xs text-gray-400">
+                  <span>Cost: <strong className="text-gray-600">{rec.upfront_cost_range}</strong></span>
+                  <span>Payback: <strong className="text-gray-600">{rec.payback_years} yrs</strong></span>
+                  <span>CO₂: <strong className="text-gray-600">-{rec.estimated_carbon_reduction_kg?.toLocaleString()} kg/yr</strong></span>
+                  <span>Category: <strong className="text-gray-600 capitalize">{rec.category}</strong></span>
+                </div>
               </div>
-              <p style={{ color: "var(--gray-500)", fontSize: 14, marginBottom: 12 }}>{rec.description}</p>
-              <div style={{ display: "flex", gap: 16, fontSize: 13, color: "var(--gray-500)" }}>
-                <span>Cost: <strong>{rec.costRange}</strong></span>
-                <span>Payback: <strong>{rec.paybackYears} yr{rec.paybackYears !== 1 ? "s" : ""}</strong></span>
-                <span>CO&#8322;: <strong>-{rec.carbonReduction}%</strong></span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div style={{ textAlign: "center" }} className="fade-in">
-          <button className="btn btn-primary" onClick={() => router.push("/simulator")}>
-            Try What-If Simulator &rarr;
+        {/* Savings comparison chart */}
+        {savingsData.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-10 animate-fade-up-delay-2">
+            <h3 className="font-bold text-gray-900 mb-4">Potential Annual Savings</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={savingsData} layout="vertical" margin={{ left: 10 }}>
+                <XAxis type="number" tickFormatter={(v) => `$${v}`} />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v) => `$${v}`} />
+                <Bar dataKey="savings" fill="#22c55e" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="text-center animate-fade-up-delay-2">
+          <button
+            onClick={() => router.push("/simulator")}
+            className="bg-brand-600 text-white px-8 py-3.5 rounded-xl text-lg font-semibold hover:bg-brand-700 hover:shadow-lg transition-all"
+          >
+            Try the What-If Simulator →
           </button>
+          <p className="text-xs text-gray-400 mt-3">
+            Toggle upgrades and see how your costs and carbon change in real time.
+          </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ value, unit, label, color }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+      <div className={`text-2xl font-bold ${color}`}>
+        {value}
+        {unit && <span className="text-sm font-medium text-gray-400 ml-1">{unit}</span>}
+      </div>
+      <div className="text-xs text-gray-400 mt-1">{label}</div>
+    </div>
+  );
+}
+
+function CostRow({ label, detail, amount }) {
+  return (
+    <div className="flex justify-between items-center">
+      <div>
+        <span className="text-gray-700 font-medium">{label}</span>
+        <span className="text-gray-400 text-sm ml-2">{detail}</span>
+      </div>
+      <span className="font-semibold text-gray-900">${amount}</span>
     </div>
   );
 }
