@@ -1,7 +1,6 @@
 "use client";
 
 import type { EnergySnapshot } from "@/types/energy";
-import { motion } from "framer-motion";
 import {
   PolarAngleAxis,
   RadialBar,
@@ -9,30 +8,32 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const EMERALD = "#10B981";
-const TRACK = "#1e293b";
+const FILL = "#5a8f6a";
+const TRACK = "#e5e1d9";
 
 export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
   const pct = Math.round(snapshot.dialPercent);
   const score = snapshot.latest?.eco_efficiency_score ?? 0;
-  const data = [{ name: "efficiency", value: pct, fill: EMERALD }];
+  const data = [{ name: "efficiency", value: pct, fill: FILL }];
 
   return (
-    <div className="relative flex h-full min-h-[240px] flex-col rounded-xl">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-wide text-slate-200">
-          Efficiency score
+    <div className="relative flex h-full min-h-[260px] flex-col rounded-xl">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-[var(--text)]">
+          How clean was your timing?
         </h2>
-        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">
-          Clean alpha
+        <span className="rounded-full bg-[var(--accent-wash)] px-3 py-1 text-sm font-medium text-[var(--accent)]">
+          Your blend
         </span>
       </div>
-      <p className="mb-4 text-xs text-slate-400">
-        Renewable share weighted by price and demand.{" "}
+      <p className="mb-4 text-base text-[var(--text-muted)]">
+        We mix renewables and price into one score so you can see progress at a
+        glance.
         {snapshot.ecoZScore != null ? (
           <>
-            Eco σ vs your polls:{" "}
-            <span className="tabular-nums text-slate-300">
+            {" "}
+            Compared with your recent days:{" "}
+            <span className="tabular-nums text-[var(--text-secondary)]">
               {snapshot.ecoZScore.toFixed(2)}
             </span>
             .
@@ -55,28 +56,23 @@ export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
               background={{ fill: TRACK }}
               dataKey="value"
               cornerRadius={10}
-              animationDuration={900}
+              animationDuration={600}
             />
           </RadialBarChart>
         </ResponsiveContainer>
-        <motion.div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
-        >
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-3xl font-bold tabular-nums text-slate-100">
+            <p className="text-4xl font-semibold tabular-nums text-[var(--text)]">
               {pct}%
             </p>
-            <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-400/90">
+            <p className="mt-1 text-2xl font-medium tabular-nums text-[var(--accent)]">
               {score >= 1000 ? score.toExponential(2) : score.toFixed(1)}
             </p>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">
-              raw index
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              Detail index
             </p>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

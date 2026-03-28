@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const sourceSans = Source_Sans_3({
+  variable: "--font-sans-display",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "WattsUp · Energy Command Center",
+  title: "WattsUp · Your energy, calmly",
   description:
-    "Quant-grade grid signals with a social-good experience — savings, carbon, and calm clarity.",
+    "A gentle view of grid signals, savings, and carbon — clarity without the noise.",
 };
 
 export default function RootLayout({
@@ -24,9 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
+        className={`${sourceSans.variable} min-h-screen font-sans antialiased`}
       >
         {children}
       </body>
