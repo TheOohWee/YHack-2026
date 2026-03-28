@@ -1,6 +1,8 @@
 """Simulate route: what-if scenario modeling."""
 
+import traceback
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from typing import Optional
 
 from app.models import HomeProfile, BillData, SimulateRequest
@@ -12,7 +14,7 @@ router = APIRouter()
 
 @router.post("/simulate")
 async def simulate(req: SimulateRequest):
-    # Compute baseline
+  try:
     baseline = estimate_energy(req.home, req.bill)
 
     # Apply changes to home profile
@@ -41,3 +43,6 @@ async def simulate(req: SimulateRequest):
         "modified_home": modified_home.model_dump(),
         "recommendations": [r.model_dump() for r in recs],
     }
+  except Exception as e:
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"error": str(e)})

@@ -1,22 +1,30 @@
-"""Gemini API integration for natural language parsing."""
+"""Gemini API integration for natural language parsing.
+
+Routes through Lava gateway when LAVA_SECRET_KEY is set, otherwise uses Gemini SDK directly.
+"""
 
 import json
 import os
+import httpx
 import google.generativeai as genai
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+LAVA_SECRET_KEY = os.getenv("LAVA_SECRET_KEY", "")
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_REST_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+LAVA_FORWARD_URL = "https://api.lava.so/v1/forward"
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-model = None
+_sdk_model = None
 
 
-def _get_model():
-    global model
-    if model is None:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-    return model
+def _get_sdk_model():
+    global _sdk_model
+    if _sdk_model is None:
+        _sdk_model = genai.GenerativeModel(GEMINI_MODEL)
+    return _sdk_model
 
 
 HOME_PARSE_PROMPT = """You are an energy auditor assistant. Extract structured home data from this user description.
@@ -59,21 +67,64 @@ Bill text:
 """
 
 
+async def _call_gemini_via_lava(prompt: str) -> str:
+    """Call Gemini through Lava gateway for usage tracking."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            LAVA_FORWARD_URL,
+            params={"u": GEMINI_REST_URL},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {LAVA_SECRET_KEY}",
+                "x-api-key": GEMINI_API_KEY,
+            },
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "responseMimeType": "application/json",
+                    "temperature": 0.1,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+
+async def _call_gemini_sdk(prompt: str) -> str:
+    """Call Gemini using the Python SDK directly."""
+    m = _get_sdk_model()
+    response = m.generate_content(
+        prompt,
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json",
+            temperature=0.1,
+        ),
+    )
+    return response.text
+
+
+async def _call_gemini(prompt: str) -> str:
+    """Call Gemini — via Lava if available, otherwise SDK."""
+    if LAVA_SECRET_KEY:
+        try:
+            result = await _call_gemini_via_lava(prompt)
+            print("[gemini] Routed through Lava")
+            return result
+        except Exception as e:
+            print(f"[gemini] Lava route failed, falling back to SDK: {e}")
+
+    return await _call_gemini_sdk(prompt)
+
+
 async def parse_home_text(text: str) -> dict:
     """Use Gemini to parse a natural-language home description into structured data."""
     if not GEMINI_API_KEY:
         return _fallback_parse_home(text)
 
     try:
-        m = _get_model()
-        response = m.generate_content(
-            HOME_PARSE_PROMPT + text,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=0.1,
-            ),
-        )
-        data = json.loads(response.text)
+        raw = await _call_gemini(HOME_PARSE_PROMPT + text)
+        data = json.loads(raw)
         return {k: v for k, v in data.items() if v is not None}
     except Exception as e:
         print(f"Gemini home parse error: {e}")
@@ -86,15 +137,8 @@ async def parse_bill_text(text: str) -> dict:
         return _fallback_parse_bill(text)
 
     try:
-        m = _get_model()
-        response = m.generate_content(
-            BILL_PARSE_PROMPT + text,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=0.1,
-            ),
-        )
-        data = json.loads(response.text)
+        raw = await _call_gemini(BILL_PARSE_PROMPT + text)
+        data = json.loads(raw)
         return {k: v for k, v in data.items() if v is not None}
     except Exception as e:
         print(f"Gemini bill parse error: {e}")
@@ -132,24 +176,20 @@ def _fallback_parse_home(text: str) -> dict:
         result["has_pool"] = True
     if re.search(r"\b(ev|electric\s*vehicle|tesla|charger)\b", t):
         result["has_ev"] = True
-    # Occupants
     m = re.search(r"(\d+)\s*(?:people|person|occupant|resident|family\s*of)", t)
     if m:
         result["num_occupants"] = int(m.group(1))
     m = re.search(r"family\s*of\s*(\d+)", t)
     if m:
         result["num_occupants"] = int(m.group(1))
-    # Insulation
     for level in ["poor", "good", "average"]:
         if level in t and "insulation" in t:
             result["insulation"] = level
             break
-    # Windows
     if re.search(r"\b(single\s*pane|single-pane)\b", t):
         result["windows"] = "single"
     elif re.search(r"\b(double\s*pane|double-pane)\b", t):
         result["windows"] = "double"
-    # Water heater
     if "tankless" in t:
         result["water_heater"] = "tankless"
     elif re.search(r"(heat\s*pump\s*water|hybrid\s*water)", t):

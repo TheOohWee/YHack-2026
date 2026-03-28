@@ -1,11 +1,19 @@
-"""AI-powered recommendation engine using Gemini for personalized advice."""
+"""AI-powered recommendation engine.
+
+Priority: K2 Think V2 (via MBZUAI API) → Gemini → rule-based fallback.
+All calls optionally routed through Lava gateway for unified tracking.
+"""
 
 import json
 import os
 import google.generativeai as genai
 from app.models import HomeProfile, EnergyEstimate, Recommendation
+from app.services.lava import forward_request
 
+K2_API_KEY = os.getenv("K2_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+K2_ENDPOINT = "https://api.k2think.ai/v1/chat/completions"
+K2_MODEL = "MBZUAI-IFM/K2-Think-v2"
 
 RECOMMEND_PROMPT = """You are a home energy efficiency expert. Based on this household profile and energy data, recommend the top 3 most impactful actions the homeowner can take to reduce their energy costs and carbon footprint.
 
@@ -38,35 +46,110 @@ Return ONLY valid JSON array of exactly 3 recommendations:
   }}
 ]
 
-Rank by combined impact: prioritize recommendations that save the most money AND carbon with reasonable payback periods. Be specific to this home — don't give generic advice."""
+Rank by combined impact: prioritize recommendations that save the most money AND carbon with reasonable payback periods. Be specific to this home — don't give generic advice.
+Return ONLY the JSON array, no markdown, no explanation."""
 
 
 async def get_recommendations(
     home: HomeProfile, estimate: EnergyEstimate
 ) -> list[Recommendation]:
-    if not GEMINI_API_KEY:
-        return _fallback_recommendations(home, estimate)
+    """Try K2 Think V2 first, fall back to Gemini, then rule-based."""
 
-    try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        prompt = RECOMMEND_PROMPT.format(
-            home_json=home.model_dump_json(indent=2),
-            estimate_json=estimate.model_dump_json(indent=2),
-        )
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=0.3,
-            ),
-        )
-        recs = json.loads(response.text)
-        if isinstance(recs, dict) and "recommendations" in recs:
-            recs = recs["recommendations"]
-        return [Recommendation(**r) for r in recs[:3]]
-    except Exception as e:
-        print(f"Gemini recommend error: {e}")
-        return _fallback_recommendations(home, estimate)
+    prompt = RECOMMEND_PROMPT.format(
+        home_json=home.model_dump_json(indent=2),
+        estimate_json=estimate.model_dump_json(indent=2),
+    )
+
+    # 1. Try K2 Think V2 via MBZUAI API (routed through Lava if available)
+    if K2_API_KEY:
+        try:
+            recs = await _call_k2(prompt)
+            if recs:
+                print("[recommender] Used K2 Think V2 via Cerebras")
+                return recs
+        except Exception as e:
+            print(f"[recommender] K2 Think V2 error: {e}")
+
+    # 2. Fall back to Gemini
+    if GEMINI_API_KEY:
+        try:
+            recs = await _call_gemini(prompt)
+            if recs:
+                print("[recommender] Used Gemini Flash")
+                return recs
+        except Exception as e:
+            print(f"[recommender] Gemini error: {e}")
+
+    # 3. Fall back to rule-based
+    print("[recommender] Using rule-based fallback")
+    return _fallback_recommendations(home, estimate)
+
+
+async def _call_k2(prompt: str) -> list[Recommendation] | None:
+    """Call K2 Think V2 via MBZUAI API, optionally through Lava gateway."""
+    payload = {
+        "model": K2_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a home energy efficiency expert. Always respond with valid JSON only.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.3,
+        "max_tokens": 4000,
+        "stream": False,
+    }
+
+    # Route through Lava if available, otherwise direct to K2 API
+    data = await forward_request(K2_ENDPOINT, payload, K2_API_KEY)
+
+    content = data["choices"][0]["message"]["content"]
+    # K2 may include thinking tags — extract JSON from response
+    content = _extract_json(content)
+    recs = json.loads(content)
+    if isinstance(recs, dict) and "recommendations" in recs:
+        recs = recs["recommendations"]
+    return [Recommendation(**r) for r in recs[:3]]
+
+
+async def _call_gemini(prompt: str) -> list[Recommendation] | None:
+    """Call Gemini Flash for recommendations."""
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    response = model.generate_content(
+        prompt,
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json",
+            temperature=0.3,
+        ),
+    )
+    recs = json.loads(response.text)
+    if isinstance(recs, dict) and "recommendations" in recs:
+        recs = recs["recommendations"]
+    return [Recommendation(**r) for r in recs[:3]]
+
+
+def _extract_json(text: str) -> str:
+    """Extract JSON from a response that may contain thinking/reasoning and markdown."""
+    import re
+    # Strip <think>...</think> tags if present
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Strip markdown code fences
+    text = re.sub(r"```(?:json)?\s*", "", text)
+    text = re.sub(r"```", "", text)
+    text = text.strip()
+    # If there's still no JSON array, try to find one embedded in the text
+    if not text.startswith("[") and not text.startswith("{"):
+        # Find the first [ ... ] block
+        match = re.search(r"\[[\s\S]*\]", text)
+        if match:
+            text = match.group(0)
+        else:
+            # Try finding a { ... } block
+            match = re.search(r"\{[\s\S]*\}", text)
+            if match:
+                text = match.group(0)
+    return text
 
 
 # ---- Fallback rule-based recommendations ----
@@ -160,7 +243,7 @@ UPGRADE_CATALOG = [
         "id": "ev",
         "title": "Switch to an Electric Vehicle",
         "description": "If you drive 12,000+ miles/year, switching from gas to EV can save $1,000-2,000/yr in fuel costs and dramatically cut transportation emissions.",
-        "savings_pct": 0.0,  # separate from home energy
+        "savings_pct": 0.0,
         "carbon_pct": 0.05,
         "cost_range": "$25,000 - $50,000",
         "payback": 5.0,
@@ -183,7 +266,6 @@ def _fallback_recommendations(
     for u in eligible:
         savings = round(u["savings_pct"] * annual_cost)
         carbon = round(u["carbon_pct"] * annual_carbon)
-        # Composite score: weight money 40%, carbon 40%, ease 20%
         effort_score = {"low": 1.0, "medium": 0.6, "high": 0.3}[u["effort"]]
         score = (savings / max(annual_cost, 1)) * 0.4 + (carbon / max(annual_carbon, 1)) * 0.4 + effort_score * 0.2
         scored.append((score, u, savings, carbon))
