@@ -18,6 +18,7 @@ export type EnergySnapshot = {
   };
   logs: EnergyLogPoint[];
   latest: EnergyLogPoint | null;
+  /** Latest raw log as plain JSON (no ObjectId / Date instances). */
   latestRaw?: Record<string, unknown> | null;
   dialPercent: number;
   priceZScore: number | null;

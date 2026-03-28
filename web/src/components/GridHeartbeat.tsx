@@ -21,8 +21,14 @@ export function GridHeartbeat({
   snapshot: EnergySnapshot | null;
   loading: boolean;
 }) {
-  if (loading || !snapshot) {
-    return <SkeletonChart />;
+  if (!snapshot) {
+    if (loading) return <SkeletonChart />;
+    return (
+      <p className="py-12 text-center text-sm text-slate-500">
+        No data yet. Fix any error above or run a backend poll so Mongo has
+        rows.
+      </p>
+    );
   }
 
   const data = snapshot.logs.map((l) => ({ ...l }));

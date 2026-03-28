@@ -1,9 +1,10 @@
 "use client";
 
+import { loadEnergySnapshot } from "@/app/actions";
 import type { EnergySnapshot } from "@/types/energy";
 import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentInsights } from "./AgentInsights";
 import { DashboardHeader } from "./DashboardHeader";
 import { EfficiencyDial } from "./EfficiencyDial";
@@ -15,40 +16,59 @@ import { Sidebar } from "./Sidebar";
 import { Simulator } from "./Simulator";
 import { SkeletonChart } from "./SkeletonChart";
 
-const defaultUser =
-  typeof process !== "undefined" && process.env.NEXT_PUBLIC_WATTSUP_USER_ID
-    ? process.env.NEXT_PUBLIC_WATTSUP_USER_ID
-    : "test-user";
+type DashboardProps = {
+  initialUserId: string;
+  initialSnapshot: EnergySnapshot | null;
+  initialError: string | null;
+};
 
-export function Dashboard() {
-  const [userId, setUserId] = useState(defaultUser);
-  const [snap, setSnap] = useState<EnergySnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+export function Dashboard({
+  initialUserId,
+  initialSnapshot,
+  initialError,
+}: DashboardProps) {
+  const [userId, setUserId] = useState(initialUserId);
+  const [snap, setSnap] = useState<EnergySnapshot | null>(initialSnapshot);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(initialError);
+  const userIdRef = useRef(userId);
+  const skipUserIdLoadOnce = useRef(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
-      const r = await fetch(`/api/energy/snapshot?userId=${encodeURIComponent(userId)}`, {
-        cache: "no-store",
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed to load snapshot");
-      setSnap(j as EnergySnapshot);
+      const res = await loadEnergySnapshot(userIdRef.current);
+      if (!res.ok) {
+        setErr(res.error);
+        setSnap(null);
+      } else {
+        setSnap(res.snapshot);
+      }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error");
+      setErr(e instanceof Error ? e.message : "Unknown error");
       setSnap(null);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    userIdRef.current = userId;
   }, [userId]);
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, 60_000);
+    const t = setInterval(() => void load(), 60_000);
     return () => clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    if (skipUserIdLoadOnce.current) {
+      skipUserIdLoadOnce.current = false;
+      return;
+    }
+    void load();
+  }, [userId, load]);
 
   const price = snap?.latest?.price_cents ?? null;
   const logs = snap?.logs ?? [];
@@ -78,10 +98,11 @@ export function Dashboard() {
             </p>
             <button
               type="button"
-              onClick={load}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-500/40 hover:text-white"
+              onClick={() => void load()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
             >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden />
               Refresh
             </button>
           </div>
@@ -132,8 +153,15 @@ export function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
             >
-              {loading || !snap ? (
-                <SkeletonChart />
+              {!snap ? (
+                loading ? (
+                  <SkeletonChart />
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No efficiency data yet. Check the alert above or your
+                    Mongo user id.
+                  </p>
+                )
               ) : (
                 <EfficiencyDial snapshot={snap} />
               )}

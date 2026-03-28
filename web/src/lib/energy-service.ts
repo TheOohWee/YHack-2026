@@ -37,6 +37,34 @@ const ENCOURAGING_FALLBACK =
   "When wind and sun are strong and prices dip, shifting a load of laundry or charging " +
   "can trim both your bill and your footprint. Small moves add up for people and the planet.";
 
+/** RSC-safe plain object (Mongo ObjectId / Date break Client Component props). */
+function toPlainLatestDoc(doc: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!doc) return null;
+  const ts = doc.timestamp;
+  const timestamp =
+    ts instanceof Date
+      ? ts.toISOString()
+      : typeof ts === "string"
+        ? ts
+        : String(ts);
+  const id = doc._id;
+  return {
+    _id: id != null ? String(id as object) : "",
+    user_id: doc.user_id,
+    timestamp,
+    price_data: doc.price_data,
+    fuel_mix: doc.fuel_mix,
+    renewable_pct: doc.renewable_pct,
+    eco_efficiency_score: doc.eco_efficiency_score,
+    local_demand_mw: doc.local_demand_mw,
+    z_score: doc.z_score,
+    gridstatus_ok: doc.gridstatus_ok,
+    llm_route: doc.llm_route,
+    llm_analysis: doc.llm_analysis,
+    action_taken: doc.action_taken,
+  };
+}
+
 export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot> {
   const db = await getDb();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -96,7 +124,7 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     stats,
     logs,
     latest,
-    latestRaw: latestDoc,
+    latestRaw: toPlainLatestDoc(latestDoc),
     dialPercent,
     priceZScore: pz,
     pricePulseAmber,
