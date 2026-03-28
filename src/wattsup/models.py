@@ -10,13 +10,17 @@ class PriceData(BaseModel):
 
 
 class FuelMix(BaseModel):
-    wind_pct: float = Field(ge=0.0, le=100.0)
-    solar_pct: float = Field(ge=0.0, le=100.0)
-    fossil_pct: float = Field(ge=0.0, le=100.0)
-    nuclear_pct: float = Field(default=0.0, ge=0.0, le=100.0)
-    hydro_pct: float = Field(default=0.0, ge=0.0, le=100.0)
-    # Biomass, storage, geothermal, imports, synch cond, unmapped labels, etc.
-    other_pct: float = Field(default=0.0, ge=0.0, le=100.0)
+    """Share of regional generation by fuel (percent of total MW, 0–100 each)."""
+
+    nuclear: float = Field(default=0.0, ge=0.0, le=100.0)
+    coal: float = Field(default=0.0, ge=0.0, le=100.0)
+    natural_gas: float = Field(default=0.0, ge=0.0, le=100.0)
+    wind: float = Field(default=0.0, ge=0.0, le=100.0)
+    solar: float = Field(default=0.0, ge=0.0, le=100.0)
+    battery_storage: float = Field(default=0.0, ge=0.0, le=100.0)
+    imports: float = Field(default=0.0, ge=0.0, le=100.0)
+    # Hydro, biomass, other renewables, oil, multi-fuel, unmapped columns, etc.
+    other: float = Field(default=0.0, ge=0.0, le=100.0)
 
 
 class EnergyLogDocument(BaseModel):
@@ -55,4 +59,3 @@ class PollContext(BaseModel):
     action_taken: bool = False
     llm_analysis: str | None = None
     hex_triggered: bool = False
-

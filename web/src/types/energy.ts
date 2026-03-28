@@ -1,12 +1,14 @@
 export type EnergyLogPoint = {
   timestamp: string;
-  wind_pct: number;
-  solar_pct: number;
-  fossil_pct: number;
-  nuclear_pct: number;
-  hydro_pct: number;
-  /** Biomass, storage, imports, synch, unmapped labels, etc. */
-  other_pct: number;
+  /** Granular fuel mix (% of total MW) — matches Python `FuelMix` / Mongo. */
+  nuclear: number;
+  coal: number;
+  natural_gas: number;
+  wind: number;
+  solar: number;
+  battery_storage: number;
+  imports: number;
+  other: number;
   price_cents: number;
   renewable_pct?: number;
   eco_efficiency_score: number | null;

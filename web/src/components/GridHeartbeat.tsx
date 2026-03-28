@@ -52,36 +52,45 @@ export function GridHeartbeat({
         <h2 className="text-sm font-semibold text-slate-200">
           Grid heartbeat
         </h2>
-        <span className="text-[11px] text-slate-500">Last 24h · PJM mix</span>
+        <span className="text-[11px] text-slate-500">Last 24h · ISO mix</span>
       </div>
       <p className="mb-4 text-xs text-slate-400">
-        Full stack from polls:{" "}
-        <strong className="text-slate-300">fossil</strong>,{" "}
+        Stacked generation share from polls:{" "}
+        <strong className="text-slate-300">coal</strong>,{" "}
+        <strong className="text-orange-300/90">natural gas</strong>,{" "}
         <strong className="text-rose-300/90">nuclear</strong>,{" "}
-        <strong className="text-cyan-300/90">hydro</strong>,{" "}
-        <strong className="text-violet-300/90">other renew. + misc</strong>, wind,
-        solar. New rows after deploy include the extra fields; re-run{" "}
-        <code className="rounded bg-slate-800 px-1">wattsup-poll</code> to
-        refresh.
+        <strong className="text-sky-200/90">imports</strong>,{" "}
+        <strong className="text-violet-300/90">other</strong> (hydro, biomass,
+        oil, …), <strong className="text-fuchsia-300/90">battery</strong>, wind,
+        solar. Re-run <code className="rounded bg-slate-800 px-1">wattsup-poll</code>{" "}
+        after upgrading.
       </p>
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={280}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id="fossilg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#64748b" stopOpacity={0.25} />
+            <linearGradient id="coalg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#57534e" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#44403c" stopOpacity={0.35} />
+            </linearGradient>
+            <linearGradient id="gasg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fb923c" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#c2410c" stopOpacity={0.35} />
             </linearGradient>
             <linearGradient id="nuclearg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#fb7185" stopOpacity={0.9} />
               <stop offset="100%" stopColor="#be123c" stopOpacity={0.3} />
             </linearGradient>
-            <linearGradient id="hydrog" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#0891b2" stopOpacity={0.3} />
+            <linearGradient id="importsg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7dd3fc" stopOpacity={0.85} />
+              <stop offset="100%" stopColor="#0369a1" stopOpacity={0.3} />
             </linearGradient>
             <linearGradient id="otherg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.85} />
               <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.3} />
+            </linearGradient>
+            <linearGradient id="batteryg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e879f9" stopOpacity={0.85} />
+              <stop offset="100%" stopColor="#a21caf" stopOpacity={0.3} />
             </linearGradient>
             <linearGradient id="wind" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
@@ -117,15 +126,23 @@ export function GridHeartbeat({
           <Tooltip content={<FuelMixTooltip />} />
           <Area
             type="monotone"
-            dataKey="fossil_pct"
-            name="Fossil"
+            dataKey="coal"
+            name="Coal"
             stackId="1"
-            stroke="#94a3b8"
-            fill="url(#fossilg)"
+            stroke="#57534e"
+            fill="url(#coalg)"
           />
           <Area
             type="monotone"
-            dataKey="nuclear_pct"
+            dataKey="natural_gas"
+            name="Natural gas"
+            stackId="1"
+            stroke="#fb923c"
+            fill="url(#gasg)"
+          />
+          <Area
+            type="monotone"
+            dataKey="nuclear"
             name="Nuclear"
             stackId="1"
             stroke="#fb7185"
@@ -133,23 +150,31 @@ export function GridHeartbeat({
           />
           <Area
             type="monotone"
-            dataKey="hydro_pct"
-            name="Hydro"
+            dataKey="imports"
+            name="Imports"
             stackId="1"
-            stroke="#22d3ee"
-            fill="url(#hydrog)"
+            stroke="#7dd3fc"
+            fill="url(#importsg)"
           />
           <Area
             type="monotone"
-            dataKey="other_pct"
-            name="Other renew. + misc"
+            dataKey="other"
+            name="Other"
             stackId="1"
             stroke="#a78bfa"
             fill="url(#otherg)"
           />
           <Area
             type="monotone"
-            dataKey="wind_pct"
+            dataKey="battery_storage"
+            name="Battery storage"
+            stackId="1"
+            stroke="#e879f9"
+            fill="url(#batteryg)"
+          />
+          <Area
+            type="monotone"
+            dataKey="wind"
             name="Wind"
             stackId="1"
             stroke="#38bdf8"
@@ -157,7 +182,7 @@ export function GridHeartbeat({
           />
           <Area
             type="monotone"
-            dataKey="solar_pct"
+            dataKey="solar"
             name="Solar"
             stackId="1"
             stroke="#fbbf24"

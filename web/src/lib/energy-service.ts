@@ -24,27 +24,61 @@ function docToPoint(doc: Record<string, unknown>): EnergyLogPoint | null {
   const pd = doc.price_data as Record<string, unknown> | undefined;
   const fm = doc.fuel_mix as Record<string, unknown> | undefined;
   const price = Number(pd?.current_price ?? 0);
-  const wind = Number(fm?.wind_pct ?? 0);
-  const solar = Number(fm?.solar_pct ?? 0);
-  const fossil = Number(fm?.fossil_pct ?? 0);
-  const nuclear = Number(fm?.nuclear_pct ?? 0);
-  const hydro = Number(fm?.hydro_pct ?? 0);
-  const otherStored = fm?.other_pct;
-  const hasFuelDetail =
-    typeof fm?.nuclear_pct === "number" ||
-    typeof fm?.hydro_pct === "number" ||
-    typeof otherStored === "number";
-  const other = hasFuelDetail
-    ? Number(otherStored ?? 0)
-    : Math.max(0, Math.min(100, 100 - wind - solar - fossil));
+
+  const isGranularFuelMix =
+    fm != null &&
+    (typeof fm.wind === "number" ||
+      typeof fm.coal === "number" ||
+      typeof fm.natural_gas === "number");
+
+  let nuclear: number;
+  let coal: number;
+  let natural_gas: number;
+  let wind: number;
+  let solar: number;
+  let battery_storage: number;
+  let imports: number;
+  let other: number;
+
+  if (isGranularFuelMix && fm) {
+    nuclear = Number(fm.nuclear ?? 0);
+    coal = Number(fm.coal ?? 0);
+    natural_gas = Number(fm.natural_gas ?? 0);
+    wind = Number(fm.wind ?? 0);
+    solar = Number(fm.solar ?? 0);
+    battery_storage = Number(fm.battery_storage ?? 0);
+    imports = Number(fm.imports ?? 0);
+    other = Number(fm.other ?? 0);
+  } else {
+    const w = Number(fm?.wind_pct ?? 0);
+    const s = Number(fm?.solar_pct ?? 0);
+    const fossil = Number(fm?.fossil_pct ?? 0);
+    const n = Number(fm?.nuclear_pct ?? 0);
+    const hydro = Number(fm?.hydro_pct ?? 0);
+    const o =
+      typeof fm?.other_pct === "number"
+        ? Number(fm.other_pct)
+        : Math.max(0, Math.min(100, 100 - w - s - fossil - n - hydro));
+    nuclear = n;
+    coal = 0;
+    natural_gas = fossil;
+    wind = w;
+    solar = s;
+    battery_storage = 0;
+    imports = 0;
+    other = hydro + o;
+  }
+
   return {
     timestamp: new Date(ts as string).toISOString(),
-    wind_pct: wind,
-    solar_pct: solar,
-    fossil_pct: fossil,
-    nuclear_pct: nuclear,
-    hydro_pct: hydro,
-    other_pct: other,
+    nuclear,
+    coal,
+    natural_gas,
+    wind,
+    solar,
+    battery_storage,
+    imports,
+    other,
     price_cents: price,
     renewable_pct:
       typeof doc.renewable_pct === "number"

@@ -46,7 +46,7 @@ export function findGoldenWindows(logs: EnergyLogPoint[]): {
     t: l.timestamp,
     ok:
       (l.renewable_pct ??
-        l.wind_pct + l.solar_pct + l.hydro_pct) > 60 &&
+        l.wind + l.solar + l.battery_storage) > 60 &&
       l.price_cents < mid,
   }));
   const windows: { start: string; end: string }[] = [];

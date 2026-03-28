@@ -61,14 +61,7 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
     grid = GridStatusFuelMixTool()
     g_res = grid.run(ctx, settings)
     if not g_res.ok:
-        ctx.fuel_mix = FuelMix(
-            wind_pct=0.0,
-            solar_pct=0.0,
-            fossil_pct=0.0,
-            nuclear_pct=0.0,
-            hydro_pct=0.0,
-            other_pct=0.0,
-        )
+        ctx.fuel_mix = FuelMix()
         if ctx.renewable_pct is None:
             ctx.renewable_pct = 0.0
         if ctx.local_demand_mw is None:
@@ -76,17 +69,10 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
     elif ctx.local_demand_mw is None:
         ctx.local_demand_mw = settings.fallback_demand_mw
 
-    fuel = ctx.fuel_mix or FuelMix(
-        wind_pct=0.0,
-        solar_pct=0.0,
-        fossil_pct=0.0,
-        nuclear_pct=0.0,
-        hydro_pct=0.0,
-        other_pct=0.0,
-    )
+    fuel = ctx.fuel_mix or FuelMix()
     renewable = ctx.renewable_pct if ctx.renewable_pct is not None else min(
         100.0,
-        fuel.wind_pct + fuel.solar_pct + fuel.hydro_pct,
+        fuel.wind + fuel.solar + fuel.battery_storage,
     )
     demand = float(ctx.local_demand_mw or settings.fallback_demand_mw)
     if ctx.price_data is None:

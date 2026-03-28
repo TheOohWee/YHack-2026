@@ -14,85 +14,52 @@ def _norm(name: str) -> str:
     return re.sub(r"\s+", " ", str(name).strip().lower())
 
 
-# Normalized fuel labels from GridStatus.io (pjm_fuel_mix / miso_fuel_mix tidy rows),
-# PJM Data Miner wide columns, and open-source gridstatus — mapped to internal buckets.
-_EXACT_FUEL_BUCKET: dict[str, str] = {
-    # Wind / solar
-    "wind": "wind",
-    "onshore wind": "wind",
-    "offshore wind": "wind",
-    "wind resource": "wind",
-    "solar": "solar",
-    "solar resource": "solar",
-    "pv": "solar",
-    "photovoltaic": "solar",
-    # Fossil — PJM / ISO wording
-    "coal": "fossil",
-    "gas": "fossil",
-    "natural gas": "fossil",
-    "other fossils": "fossil",
-    "other fossil": "fossil",
-    "oil": "fossil",
-    "diesel": "fossil",
-    "kerosene": "fossil",
-    "jet": "fossil",
-    "jet fuel": "fossil",
-    "dual fuel": "fossil",
-    "multiple fuels": "fossil",
-    "synthetic gas": "fossil",
-    "blast furnace gas": "fossil",
-    "refinery gases": "fossil",
-    "other gases": "fossil",
-    "pet coke": "fossil",
-    "petroleum coke": "fossil",
-    "waste coal": "fossil",
-    "waste coal steam": "fossil",
-    "steam": "fossil",
-    "methane": "fossil",
-    "msw": "fossil",  # municipal solid waste incineration — often counted fossil; stable UI bucket
-    "nuclear": "nuclear",
-    # Hydro — own bucket for Mongo + UI
-    "hydro": "hydro",
-    "hydroelectric": "hydro",
-    # Other renewables (count toward renewable % for eco score; biomass, storage, etc.)
-    "other renewable": "renew_other",
-    "other renewables": "renew_other",
-    "renewables": "renew_other",
-    "biomass": "renew_other",
-    "wood": "renew_other",
-    "black liquor": "renew_other",
-    "landfill gas": "renew_other",
-    "geothermal": "renew_other",
-    "energy storage": "renew_other",
-    "storage": "renew_other",
-    "pumped storage": "renew_other",
-    "pumped": "renew_other",
-    "battery": "renew_other",
-}
+# Keys match FuelMix field names (Mongo + Next.js).
+_MIX_KEYS = (
+    "nuclear",
+    "coal",
+    "natural_gas",
+    "wind",
+    "solar",
+    "battery_storage",
+    "imports",
+    "other",
+)
 
 
-def _fuel_type_bucket(label: str) -> str | None:
+def _granular_mix_key_and_renew(label: str) -> tuple[str, bool]:
     """
-    Classify fuel labels into buckets for FuelMix + renewable %.
-    None → MW counted in other_pct (imports, synch cond, unknown).
+    Map a GridStatus / PJM / MISO column or fuel_type label to a FuelMix bucket.
+    Second value: whether this MW counts toward aggregate renewable_pct (eco score).
     """
     n = _norm(label)
     if not n:
-        return None
-    if n in _EXACT_FUEL_BUCKET:
-        return _EXACT_FUEL_BUCKET[n]
+        return "other", False
 
     if "synch" in n and "cond" in n:
-        return None
+        return "other", False
 
-    # MISO / PJM compound names (substring, order matters)
-    if "waste coal" in n or "pet coke" in n or "petroleum coke" in n:
-        return "fossil"
+    if "import" in n and "important" not in n:
+        if n.startswith("import") or re.search(r"\bimports?\b", n):
+            return "imports", False
+
     if "landfill gas" in n:
-        return "renew_other"
+        return "other", True
 
     if "nuclear" in n or "uranium" in n:
-        return "nuclear"
+        return "nuclear", False
+
+    if "wind" in n:
+        return "wind", True
+
+    if "solar" in n or "photovoltaic" in n or re.search(r"\bpv\b", n):
+        return "solar", True
+
+    if "battery" in n or "energy storage" in n:
+        return "battery_storage", True
+
+    if "pumped storage" in n or ("pumped" in n and "storage" in n):
+        return "other", True
 
     if (
         "hydro" in n
@@ -100,69 +67,82 @@ def _fuel_type_bucket(label: str) -> str | None:
         or "run of river" in n
         or "run-of-river" in n
     ):
-        return "hydro"
+        return "other", True
 
-    if "wind" in n:
-        return "wind"
-    if "solar" in n or "photovoltaic" in n or re.search(r"\bpv\b", n):
-        return "solar"
+    if "blast furnace" in n or "refinery gas" in n:
+        return "other", False
 
-    if any(
-        tok in n
-        for tok in (
-            "coal",
-            "gas",
-            "ct",
-            "cc",
-            "combined cycle",
-            "simple cycle",
-            "peaking",
-            "steam turbine",
-            "fossil",
-            "oil",
-            "diesel",
-            "kerosene",
-            "petroleum",
-            "fuel oil",
-            "dual fuel",
-            "multi fuel",
-            "methane",
-            "shale",
-            "lng",
-        )
+    if "waste coal" in n or "pet coke" in n or "petroleum coke" in n or "coal" in n:
+        return "coal", False
+
+    if (
+        "oil" in n
+        or "diesel" in n
+        or "kerosene" in n
+        or "jet fuel" in n
+        or "petroleum" in n
+        or "fuel oil" in n
     ):
-        return "fossil"
+        return "other", False
 
     if any(
         tok in n
         for tok in (
             "biomass",
             "geothermal",
-            "storage",
-            "pumped",
-            "battery",
-            "renewable",
-            "other renew",
             "wood",
             "black liquor",
+            "other renew",
+            "renewable",
+            "synthetic gas",
+            "msw",
         )
     ):
-        return "renew_other"
+        return "other", True
 
-    return None
+    if any(
+        tok in n
+        for tok in (
+            "natural gas",
+            "shale",
+            "lng",
+            "combined cycle",
+            "simple cycle",
+            "peaking",
+        )
+    ):
+        return "natural_gas", False
+
+    if "methane" in n and "landfill" not in n:
+        return "natural_gas", False
+
+    if "gas" in n:
+        return "natural_gas", False
+
+    if any(tok in n for tok in ("ct", "cc", "steam turbine")):
+        return "natural_gas", False
+
+    if "dual fuel" in n or "multiple fuel" in n:
+        return "other", False
+
+    if "steam" in n:
+        return "other", False
+
+    return "other", False
 
 
 def _latest_fuel_percents(row: pd.Series) -> tuple[FuelMix, float]:
     """
-    Latest-interval MW Series indexed by fuel name → FuelMix + aggregate renewable %.
-    Uses explicit PJM/MISO/GridStatus label mapping so the MongoDB schema stays stable.
+    Latest-interval MW Series indexed by fuel name → granular FuelMix + renewable %.
+    Percentages are shares of total regional MW (0–100 per field).
     """
     num = pd.to_numeric(row, errors="coerce")
     total = float(num.sum())
     if total <= 0:
         raise ValueError("Fuel mix totals to zero MW.")
 
-    wind_mw = solar_mw = fossil_mw = nuclear_mw = hydro_mw = renew_other_mw = unmapped_mw = 0.0
+    mw_totals = {k: 0.0 for k in _MIX_KEYS}
+    renew_mw = 0.0
     for col in num.index:
         v = num[col]
         if pd.isna(v):
@@ -170,35 +150,27 @@ def _latest_fuel_percents(row: pd.Series) -> tuple[FuelMix, float]:
         mw = float(v)
         if mw == 0.0:
             continue
-        bucket = _fuel_type_bucket(str(col))
-        if bucket == "wind":
-            wind_mw += mw
-        elif bucket == "solar":
-            solar_mw += mw
-        elif bucket == "fossil":
-            fossil_mw += mw
-        elif bucket == "nuclear":
-            nuclear_mw += mw
-        elif bucket == "hydro":
-            hydro_mw += mw
-        elif bucket == "renew_other":
-            renew_other_mw += mw
-        else:
-            unmapped_mw += mw
+        key, renew = _granular_mix_key_and_renew(str(col))
+        mw_totals[key] += mw
+        if renew:
+            renew_mw += mw
 
     scale = 100.0 / total
+
+    def pct(key: str) -> float:
+        return min(100.0, mw_totals[key] * scale)
+
     fuel = FuelMix(
-        wind_pct=wind_mw * scale,
-        solar_pct=solar_mw * scale,
-        fossil_pct=min(100.0, fossil_mw * scale),
-        nuclear_pct=nuclear_mw * scale,
-        hydro_pct=hydro_mw * scale,
-        other_pct=min(100.0, (renew_other_mw + unmapped_mw) * scale),
+        nuclear=pct("nuclear"),
+        coal=pct("coal"),
+        natural_gas=pct("natural_gas"),
+        wind=pct("wind"),
+        solar=pct("solar"),
+        battery_storage=pct("battery_storage"),
+        imports=pct("imports"),
+        other=pct("other"),
     )
-    renew_pct = min(
-        100.0,
-        (wind_mw + solar_mw + hydro_mw + renew_other_mw) * scale,
-    )
+    renew_pct = min(100.0, renew_mw * scale)
     return fuel, renew_pct
 
 
