@@ -17,6 +17,10 @@ def main() -> None:
         help="Compute signals but skip MongoDB writes.",
     )
     args = parser.parse_args()
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
     # Avoid logging full PJM request headers (subscription key) at INFO.
     logging.getLogger("gridstatus").setLevel(logging.WARNING)
     logging.getLogger("gridstatusio").setLevel(logging.WARNING)

@@ -12,13 +12,25 @@ import {
 const EMERALD = "#10B981";
 const TRACK = "#1e293b";
 
-export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
+export function EfficiencyDial({
+  snapshot,
+  alert,
+}: {
+  snapshot: EnergySnapshot;
+  alert?: boolean;
+}) {
   const pct = Math.round(snapshot.dialPercent);
   const score = snapshot.latest?.eco_efficiency_score ?? 0;
   const data = [{ name: "efficiency", value: pct, fill: EMERALD }];
+  const ring =
+    alert === true
+      ? "ring-2 ring-amber-400/90 ring-offset-2 ring-offset-slate-900/80"
+      : "";
 
   return (
-    <div className="relative flex h-full min-h-[240px] flex-col">
+    <div
+      className={`relative flex h-full min-h-[240px] flex-col rounded-xl transition-shadow ${ring}`}
+    >
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold tracking-wide text-slate-200">
           Efficiency score
@@ -28,8 +40,16 @@ export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
         </span>
       </div>
       <p className="mb-4 text-xs text-slate-400">
-        Renewable share weighted by price and demand — higher is greener for
-        your wallet and the air we share.
+        Renewable share weighted by price and demand.{" "}
+        {snapshot.ecoZScore != null ? (
+          <>
+            Eco σ vs your polls:{" "}
+            <span className="tabular-nums text-slate-300">
+              {snapshot.ecoZScore.toFixed(2)}
+            </span>
+            {snapshot.ecoZScoreAlert ? " — unusual spike." : "."}
+          </>
+        ) : null}
       </p>
       <div className="relative flex flex-1 items-center justify-center">
         <ResponsiveContainer width="100%" height={220}>

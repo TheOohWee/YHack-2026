@@ -145,7 +145,13 @@ export function Dashboard({
             <GoldenWindowBanner windows={snap?.goldenWindows ?? []} />
           </motion.div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div
+            className={`grid gap-6 lg:grid-cols-2 ${
+              snap?.ecoZScoreAlert
+                ? "rounded-2xl ring-2 ring-amber-400/70 ring-offset-2 ring-offset-slate-950 p-1 sm:p-2"
+                : ""
+            }`}
+          >
             <motion.section
               id="dial"
               className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20 backdrop-blur-sm"
@@ -163,7 +169,10 @@ export function Dashboard({
                   </p>
                 )
               ) : (
-                <EfficiencyDial snapshot={snap} />
+                <EfficiencyDial
+                  snapshot={snap}
+                  alert={snap.ecoZScoreAlert}
+                />
               )}
             </motion.section>
 
@@ -184,7 +193,12 @@ export function Dashboard({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
-              <AgentInsights text={snap?.insight ?? ""} />
+              <AgentInsights
+                text={snap?.insight ?? ""}
+                ecoZScore={snap?.ecoZScore ?? null}
+                ecoZScoreAlert={snap?.ecoZScoreAlert ?? false}
+                fromLlm={snap?.insightFromLlm ?? false}
+              />
             </motion.section>
 
             <motion.section

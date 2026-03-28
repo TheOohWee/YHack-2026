@@ -55,12 +55,34 @@ export function GridHeartbeat({
         <span className="text-[11px] text-slate-500">Last 24h · PJM mix</span>
       </div>
       <p className="mb-4 text-xs text-slate-400">
-        Stacked share of wind, solar, and fossil on the regional grid — hover a
-        point for plain-language detail.
+        Full stack from polls:{" "}
+        <strong className="text-slate-300">fossil</strong>,{" "}
+        <strong className="text-rose-300/90">nuclear</strong>,{" "}
+        <strong className="text-cyan-300/90">hydro</strong>,{" "}
+        <strong className="text-violet-300/90">other renew. + misc</strong>, wind,
+        solar. New rows after deploy include the extra fields; re-run{" "}
+        <code className="rounded bg-slate-800 px-1">wattsup-poll</code> to
+        refresh.
       </p>
       <ResponsiveContainer width="100%" height={260}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
+            <linearGradient id="fossilg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#64748b" stopOpacity={0.25} />
+            </linearGradient>
+            <linearGradient id="nuclearg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fb7185" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#be123c" stopOpacity={0.3} />
+            </linearGradient>
+            <linearGradient id="hydrog" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#0891b2" stopOpacity={0.3} />
+            </linearGradient>
+            <linearGradient id="otherg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.85} />
+              <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.3} />
+            </linearGradient>
             <linearGradient id="wind" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
               <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.35} />
@@ -68,10 +90,6 @@ export function GridHeartbeat({
             <linearGradient id="solar" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.95} />
               <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.35} />
-            </linearGradient>
-            <linearGradient id="fossil" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#64748b" stopOpacity={0.25} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
@@ -99,6 +117,38 @@ export function GridHeartbeat({
           <Tooltip content={<FuelMixTooltip />} />
           <Area
             type="monotone"
+            dataKey="fossil_pct"
+            name="Fossil"
+            stackId="1"
+            stroke="#94a3b8"
+            fill="url(#fossilg)"
+          />
+          <Area
+            type="monotone"
+            dataKey="nuclear_pct"
+            name="Nuclear"
+            stackId="1"
+            stroke="#fb7185"
+            fill="url(#nuclearg)"
+          />
+          <Area
+            type="monotone"
+            dataKey="hydro_pct"
+            name="Hydro"
+            stackId="1"
+            stroke="#22d3ee"
+            fill="url(#hydrog)"
+          />
+          <Area
+            type="monotone"
+            dataKey="other_pct"
+            name="Other renew. + misc"
+            stackId="1"
+            stroke="#a78bfa"
+            fill="url(#otherg)"
+          />
+          <Area
+            type="monotone"
             dataKey="wind_pct"
             name="Wind"
             stackId="1"
@@ -112,14 +162,6 @@ export function GridHeartbeat({
             stackId="1"
             stroke="#fbbf24"
             fill="url(#solar)"
-          />
-          <Area
-            type="monotone"
-            dataKey="fossil_pct"
-            name="Fossil"
-            stackId="1"
-            stroke="#94a3b8"
-            fill="url(#fossil)"
           />
         </AreaChart>
       </ResponsiveContainer>

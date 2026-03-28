@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Self
 from urllib.parse import quote_plus
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # wattsup/src/wattsup/config.py -> project root (where pyproject.toml and .env live)
@@ -67,12 +67,19 @@ class Settings(BaseSettings):
         description="PJM Data Miner API key; used if GridStatus.io is not configured or fails.",
     )
 
-    k2v2_base_url: str | None = Field(default=None, validation_alias="K2V2_BASE_URL")
-    k2v2_api_key: str | None = Field(default=None, validation_alias="K2V2_API_KEY")
-    gemini_flash_model: str = Field(
-        default="gemini-2.0-flash", validation_alias="GEMINI_FLASH_MODEL"
+    k2v2_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("K2V2_BASE_URL", "LAVA_BASE_URL"),
     )
-    gemini_pro_model: str = Field(default="gemini-1.5-pro", validation_alias="GEMINI_PRO_MODEL")
+    k2v2_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("K2V2_API_KEY", "LAVA_KEY"),
+    )
+    # Defaults suit Lava / OpenAI-compatible gateways; override with GEMINI_* for native Gemini IDs.
+    gemini_flash_model: str = Field(
+        default="gpt-4o-mini", validation_alias="GEMINI_FLASH_MODEL"
+    )
+    gemini_pro_model: str = Field(default="gpt-4o", validation_alias="GEMINI_PRO_MODEL")
 
     hex_api_key: str | None = Field(default=None, validation_alias="HEX_API_KEY")
     hex_run_url: str | None = Field(default=None, validation_alias="HEX_RUN_URL")
@@ -92,3 +99,10 @@ class Settings(BaseSettings):
 
     wattsup_host: str = Field(default="127.0.0.1", validation_alias="WATTSUP_HOST")
     wattsup_port: int = Field(default=8000, validation_alias="WATTSUP_PORT")
+
+    poll_interval_seconds: int = Field(
+        default=300,
+        ge=60,
+        validation_alias="POLL_INTERVAL_SECONDS",
+        description="Background worker sleep between energy polls (ComEd + grid + Mongo).",
+    )

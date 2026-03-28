@@ -32,7 +32,8 @@ class PushNotificationTool(AgentTool):
     description = "Sends encouraging alerts via Telegram and/or OpenClaw-style WhatsApp webhook."
 
     def run(self, ctx: PollContext, settings: Settings) -> ToolResult[dict]:
-        text = _friendly_alert(ctx)
+        analysis = (ctx.llm_analysis or "").strip()
+        text = analysis if analysis else _friendly_alert(ctx)
         results: dict = {}
 
         if settings.telegram_bot_token and settings.telegram_chat_id:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 from wattsup.config import Settings
 from wattsup.db import (
@@ -58,7 +61,14 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
     grid = GridStatusFuelMixTool()
     g_res = grid.run(ctx, settings)
     if not g_res.ok:
-        ctx.fuel_mix = FuelMix(wind_pct=0.0, solar_pct=0.0, fossil_pct=0.0)
+        ctx.fuel_mix = FuelMix(
+            wind_pct=0.0,
+            solar_pct=0.0,
+            fossil_pct=0.0,
+            nuclear_pct=0.0,
+            hydro_pct=0.0,
+            other_pct=0.0,
+        )
         if ctx.renewable_pct is None:
             ctx.renewable_pct = 0.0
         if ctx.local_demand_mw is None:
@@ -66,9 +76,17 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
     elif ctx.local_demand_mw is None:
         ctx.local_demand_mw = settings.fallback_demand_mw
 
-    fuel = ctx.fuel_mix or FuelMix(wind_pct=0.0, solar_pct=0.0, fossil_pct=0.0)
-    renewable = ctx.renewable_pct if ctx.renewable_pct is not None else (
-        fuel.wind_pct + fuel.solar_pct
+    fuel = ctx.fuel_mix or FuelMix(
+        wind_pct=0.0,
+        solar_pct=0.0,
+        fossil_pct=0.0,
+        nuclear_pct=0.0,
+        hydro_pct=0.0,
+        other_pct=0.0,
+    )
+    renewable = ctx.renewable_pct if ctx.renewable_pct is not None else min(
+        100.0,
+        fuel.wind_pct + fuel.solar_pct + fuel.hydro_pct,
     )
     demand = float(ctx.local_demand_mw or settings.fallback_demand_mw)
     if ctx.price_data is None:
@@ -94,14 +112,18 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
 
     k2 = K2V2GatewayTool()
     llm_route: str | None = None
-    if notify:
-        if len(history) >= settings.pro_history_threshold:
+    if settings.k2v2_base_url and settings.k2v2_api_key:
+        llm_route = "flash"
+        flash_res = k2.run_for(ctx, settings, "flash", _flash_prompt(ctx))
+        if not flash_res.ok and flash_res.error:
+            _log.warning("LLM flash failed: %s", flash_res.error)
+        if notify and len(history) >= settings.pro_history_threshold:
             llm_route = "pro"
-            k2.run_for(ctx, settings, "pro", _pro_prompt(ctx, history))
-        else:
-            llm_route = "flash"
-            k2.run_for(ctx, settings, "flash", _flash_prompt(ctx))
+            pro_res = k2.run_for(ctx, settings, "pro", _pro_prompt(ctx, history))
+            if not pro_res.ok and pro_res.error:
+                _log.warning("LLM pro failed: %s", pro_res.error)
 
+    if notify:
         hex_tool = HexRunTool()
         hex_tool.run(ctx, settings)
 
@@ -128,6 +150,7 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
     }
     if ctx.llm_analysis:
         extras["llm_analysis"] = ctx.llm_analysis
+        extras["social_message"] = ctx.llm_analysis
 
     if not dry_run and coll is not None:
         enrich_and_insert(coll, doc, extras)

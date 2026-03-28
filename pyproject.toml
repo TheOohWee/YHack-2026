@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 wattsup-poll = "wattsup.main:main"
+wattsup-worker = "wattsup.worker:main"
 wattsup-serve = "wattsup.server:main"
 
 [build-system]

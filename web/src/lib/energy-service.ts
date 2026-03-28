@@ -12,11 +12,27 @@ function docToPoint(doc: Record<string, unknown>): EnergyLogPoint | null {
   const pd = doc.price_data as Record<string, unknown> | undefined;
   const fm = doc.fuel_mix as Record<string, unknown> | undefined;
   const price = Number(pd?.current_price ?? 0);
+  const wind = Number(fm?.wind_pct ?? 0);
+  const solar = Number(fm?.solar_pct ?? 0);
+  const fossil = Number(fm?.fossil_pct ?? 0);
+  const nuclear = Number(fm?.nuclear_pct ?? 0);
+  const hydro = Number(fm?.hydro_pct ?? 0);
+  const otherStored = fm?.other_pct;
+  const hasFuelDetail =
+    typeof fm?.nuclear_pct === "number" ||
+    typeof fm?.hydro_pct === "number" ||
+    typeof otherStored === "number";
+  const other = hasFuelDetail
+    ? Number(otherStored ?? 0)
+    : Math.max(0, Math.min(100, 100 - wind - solar - fossil));
   return {
     timestamp: new Date(ts as string).toISOString(),
-    wind_pct: Number(fm?.wind_pct ?? 0),
-    solar_pct: Number(fm?.solar_pct ?? 0),
-    fossil_pct: Number(fm?.fossil_pct ?? 0),
+    wind_pct: wind,
+    solar_pct: solar,
+    fossil_pct: fossil,
+    nuclear_pct: nuclear,
+    hydro_pct: hydro,
+    other_pct: other,
     price_cents: price,
     renewable_pct:
       typeof doc.renewable_pct === "number"
@@ -61,6 +77,7 @@ function toPlainLatestDoc(doc: Record<string, unknown> | null): Record<string, u
     gridstatus_ok: doc.gridstatus_ok,
     llm_route: doc.llm_route,
     llm_analysis: doc.llm_analysis,
+    social_message: doc.social_message,
     action_taken: doc.action_taken,
   };
 }
@@ -107,10 +124,20 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
 
   const goldenWindows = findGoldenWindows(logs);
 
-  const llm = latestDoc && typeof latestDoc.llm_analysis === "string"
-    ? latestDoc.llm_analysis
-    : "";
-  const insight = llm.trim().length > 0 ? llm : ENCOURAGING_FALLBACK;
+  const rawSocial =
+    latestDoc && typeof latestDoc.social_message === "string"
+      ? latestDoc.social_message
+      : latestDoc && typeof latestDoc.llm_analysis === "string"
+        ? latestDoc.llm_analysis
+        : "";
+  const insightFromLlm = rawSocial.trim().length > 0;
+  const insight = insightFromLlm ? rawSocial.trim() : ENCOURAGING_FALLBACK;
+
+  const ecoZ =
+    latest?.z_score != null && Number.isFinite(latest.z_score)
+      ? latest.z_score
+      : null;
+  const ecoZScoreAlert = ecoZ !== null && ecoZ > 2;
 
   const stats = {
     total_carbon_saved_kg: Number(
@@ -130,6 +157,9 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     pricePulseAmber,
     goldenWindows,
     insight,
+    insightFromLlm,
+    ecoZScore: ecoZ,
+    ecoZScoreAlert,
     status: {
       active,
       lastPollMinutesAgo:
