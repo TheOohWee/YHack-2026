@@ -143,11 +143,23 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
         flash_res = k2.run_for(ctx, settings, "flash", _flash_prompt(ctx))
         if not flash_res.ok and flash_res.error:
             _log.warning("LLM flash failed: %s", flash_res.error)
-        if notify and z_candidate and len(history) >= settings.pro_history_threshold:
-            llm_route = "pro"
-            pro_res = k2.run_for(ctx, settings, "pro", _pro_prompt(ctx, history))
-            if not pro_res.ok and pro_res.error:
-                _log.warning("LLM pro failed: %s", pro_res.error)
+        if notify and len(history) >= settings.pro_history_threshold:
+            # Pro tier: K2 Think V2 (primary) → Gemini Pro (fallback)
+            pro_prompt = _pro_prompt(ctx, history)
+            if settings.k2_api_key:
+                llm_route = "k2-think-v2"
+                pro_res = k2.run_k2(ctx, settings, pro_prompt)
+                if not pro_res.ok and pro_res.error:
+                    _log.warning("K2 Think V2 failed, falling back to Gemini Pro: %s", pro_res.error)
+                    llm_route = "pro"
+                    pro_res = k2.run_for(ctx, settings, "pro", pro_prompt)
+                    if not pro_res.ok and pro_res.error:
+                        _log.warning("Gemini Pro fallback also failed: %s", pro_res.error)
+            else:
+                llm_route = "pro"
+                pro_res = k2.run_for(ctx, settings, "pro", pro_prompt)
+                if not pro_res.ok and pro_res.error:
+                    _log.warning("LLM pro failed: %s", pro_res.error)
 
     if notify:
         hex_tool = HexRunTool()
