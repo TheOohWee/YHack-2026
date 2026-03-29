@@ -9,6 +9,7 @@ import httpx
 
 from wattsup.chat_agent import answer_without_llm, run_chat_agent
 from wattsup.config import Settings
+from wattsup.demo_hardware import maybe_local_eco_followup
 from wattsup.plain_text import format_user_facing_reply
 
 _log = logging.getLogger(__name__)
@@ -42,3 +43,25 @@ def slack_post_message(
         data = r.json()
         if not data.get("ok"):
             _log.warning("chat.postMessage failed: %s", data)
+
+
+def slack_user_message_complete(
+    settings: Settings,
+    user_id: str,
+    channel: str,
+    thread_ts: str | None,
+    user_text: str,
+) -> None:
+    """
+    Agent reply in Slack, then optional local display-dim follow-up when
+    WATTSUP_DEMO_LOCAL_ECO=true and user_text asks to optimize energy usage.
+    """
+    try:
+        reply = agent_reply_for_user(settings, user_id, user_text)
+    except Exception:
+        _log.exception("slack agent failed")
+        reply = "Sorry — the agent hit an error. Check server logs."
+    slack_post_message(settings, channel, reply, thread_ts)
+    follow = maybe_local_eco_followup(settings, user_text)
+    if follow:
+        slack_post_message(settings, channel, follow, thread_ts)

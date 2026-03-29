@@ -13,7 +13,11 @@ from pydantic import BaseModel, Field
 
 from wattsup.config import Settings
 from wattsup.orchestrator import run_energy_poll
-from wattsup.slack_agent_bridge import agent_reply_for_user, slack_post_message
+from wattsup.slack_agent_bridge import (
+    agent_reply_for_user,
+    slack_post_message,
+    slack_user_message_complete,
+)
 from wattsup.slack_socket import start_slack_socket_background
 from wattsup.slack_util import verify_slack_request
 
@@ -69,12 +73,9 @@ def _handle_slack_payload(data: dict[str, Any], settings: Settings) -> None:
         return
     thread_ts = ev.get("thread_ts") or ev.get("ts")
     user_id = settings.wattsup_default_user_id
-    try:
-        reply = agent_reply_for_user(settings, user_id, text)
-    except Exception:
-        _log.exception("slack agent failed")
-        reply = "Sorry — the agent hit an error. Check server logs."
-    slack_post_message(settings, channel, reply, thread_ts)
+    slack_user_message_complete(
+        settings, user_id, str(channel), thread_ts, text
+    )
 
 
 @app.get("/health")

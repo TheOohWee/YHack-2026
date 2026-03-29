@@ -148,6 +148,22 @@ class Settings(BaseSettings):
         description="Maps chat webhooks (Slack/Telegram) to energy_logs user_id when not overridden.",
     )
 
+    demo_local_eco: bool = Field(
+        default=False,
+        validation_alias="WATTSUP_DEMO_LOCAL_ECO",
+        description=(
+            "If true and Slack text includes an energy-optimization phrase, wattsup-serve dims "
+            "this machine's display after replying (local demos only)."
+        ),
+    )
+    demo_local_eco_brightness: float = Field(
+        default=0.2,
+        ge=0.01,
+        le=1.0,
+        validation_alias="WATTSUP_DEMO_LOCAL_BRIGHTNESS",
+        description="Target brightness 0.01–1.0 (default 0.2 ≈ 20% from full) for brightness CLI / System Events.",
+    )
+
     poll_interval_seconds: int = Field(
         default=300,
         ge=60,

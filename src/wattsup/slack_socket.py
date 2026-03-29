@@ -40,7 +40,7 @@ def _dedupe_consume(channel: str, ts: str | None) -> bool:
 
 
 def _process_slack_user_message(settings: Any, event: dict[str, Any]) -> None:
-    from wattsup.slack_agent_bridge import agent_reply_for_user, slack_post_message
+    from wattsup.slack_agent_bridge import slack_user_message_complete
 
     channel = event.get("channel")
     if not channel:
@@ -64,12 +64,13 @@ def _process_slack_user_message(settings: Any, event: dict[str, Any]) -> None:
         channel,
         text[:100],
     )
-    try:
-        reply = agent_reply_for_user(settings, user_id, text)
-    except Exception:
-        _log.exception("slack socket agent failed")
-        reply = "Sorry — the agent hit an error. Check server logs."
-    slack_post_message(settings, str(channel), reply, str(thread_ts) if thread_ts else None)
+    slack_user_message_complete(
+        settings,
+        user_id,
+        str(channel),
+        str(thread_ts) if thread_ts else None,
+        text,
+    )
 
 
 def _build_bolt_app(settings: Any) -> App:
