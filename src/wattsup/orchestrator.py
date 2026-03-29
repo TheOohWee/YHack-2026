@@ -21,6 +21,7 @@ from wattsup.db import (
 )
 from wattsup.models import EnergyLogDocument, FuelMix, PollContext
 from wattsup.quant import eco_efficiency_score, z_score
+from wattsup.streaks import update_green_streak_for_user
 from wattsup.tools import (
     ComEd5MinTool,
     GridStatusFuelMixTool,
@@ -215,6 +216,10 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
         except Exception:
             pass
         enrich_and_insert(coll, doc, extras)
+        try:
+            update_green_streak_for_user(settings, user_id)
+        except Exception:
+            _log.exception("green streak update failed for user_id=%s", user_id)
 
     ctx.notify = notify
     ctx.action_taken = action_taken

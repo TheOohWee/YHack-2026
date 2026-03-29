@@ -1,3 +1,4 @@
+import { DEMO_GREEN_STREAK_FALLBACK } from "@/lib/demo-streak";
 import { getDb } from "@/lib/mongodb";
 import {
   findGoldenWindows,
@@ -147,7 +148,7 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
   const db = await getDb();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [rows, lastForStatus] = await Promise.all([
+  const [rows, lastForStatus, streakRow] = await Promise.all([
     db
       .collection("energy_logs")
       .find({ user_id: userId, timestamp: { $gte: since } })
@@ -157,6 +158,7 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     db
       .collection("energy_logs")
       .findOne({ user_id: userId }, { sort: { timestamp: -1 } }),
+    db.collection("streaks").findOne({ user_id: userId }),
   ]);
 
   const latestDoc = lastForStatus as Record<string, unknown> | null;
@@ -222,6 +224,46 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     ),
   };
 
+  const streakDoc = streakRow as Record<string, unknown> | null;
+  const streakFromDb =
+    streakDoc != null
+      ? {
+          currentStreak: Math.max(
+            0,
+            Math.floor(
+              Number(streakDoc.current_streak ?? streakDoc.currentStreak ?? 0),
+            ),
+          ),
+          longestStreak: Math.max(
+            0,
+            Math.floor(
+              Number(streakDoc.longest_streak ?? streakDoc.longestStreak ?? 0),
+            ),
+          ),
+          streakCalendarDays: Math.max(
+            0,
+            Math.floor(
+              Number(
+                streakDoc.streak_calendar_days ??
+                  streakDoc.streakCalendarDays ??
+                  0,
+              ),
+            ),
+          ),
+          lastPollWasGreen:
+            typeof streakDoc.last_poll_was_green === "boolean"
+              ? streakDoc.last_poll_was_green
+              : null,
+          rollingMedianAtPoll: toFiniteNumber(streakDoc.rolling_median_at_poll),
+          lastEcoScore: toFiniteNumber(streakDoc.last_eco_score),
+        }
+      : null;
+
+  const streak = streakFromDb ?? {
+    ...DEMO_GREEN_STREAK_FALLBACK,
+    isMock: true as const,
+  };
+
   return {
     userId,
     stats,
@@ -241,5 +283,6 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
         lastPollMinutesAgo !== null ? Math.round(lastPollMinutesAgo) : null,
       lastPolledLabel,
     },
+    streak,
   };
 }

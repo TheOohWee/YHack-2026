@@ -16,6 +16,19 @@ export type EnergyLogPoint = {
   gridstatus_ok?: boolean;
 };
 
+/** Rolling green-poll streak from Mongo `streaks` (updated each poll). */
+export type GreenStreakState = {
+  currentStreak: number;
+  longestStreak: number;
+  /** Distinct UTC calendar days in the current trailing green run (drives leaf count). */
+  streakCalendarDays: number;
+  lastPollWasGreen: boolean | null;
+  rollingMedianAtPoll: number | null;
+  lastEcoScore: number | null;
+  /** True when values come from `DEMO_GREEN_STREAK_FALLBACK` (no DB doc). */
+  isMock?: boolean;
+};
+
 export type EnergySnapshot = {
   userId: string;
   stats: {
@@ -40,4 +53,6 @@ export type EnergySnapshot = {
     lastPollMinutesAgo: number | null;
     lastPolledLabel: string;
   };
+  /** Always set; uses demo fallback if Mongo `streaks` is missing. */
+  streak: GreenStreakState;
 };

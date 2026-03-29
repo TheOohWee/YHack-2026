@@ -4,6 +4,7 @@ One-time (or repeatable) MongoDB seed for a realistic dashboard demo.
 
 - Inserts hourly energy_logs for the past N days (PJM-ish mix, ComEd-scale prices).
 - Upserts user_stats with plausible savings totals.
+- Recomputes ``streaks`` from seeded scores so the green-streak plant shows mock data.
 - Does NOT call ComEd, GridStatus, or any poll tools — read path stays unchanged.
 
 Run from repo root (uses src/wattsup on PYTHONPATH):
@@ -33,6 +34,7 @@ from wattsup.config import Settings  # noqa: E402
 from wattsup.db import enrich_and_insert, get_collection  # noqa: E402
 from wattsup.models import EnergyLogDocument, FuelMix, PriceData  # noqa: E402
 from wattsup.quant import eco_efficiency_score, z_score  # noqa: E402
+from wattsup.streaks import recompute_green_streak_from_history  # noqa: E402
 
 # Reproducible demo
 random.seed(20260329)
@@ -205,6 +207,13 @@ def main() -> None:
         },
         upsert=True,
     )
+
+    rec = recompute_green_streak_from_history(settings, uid)
+    if rec:
+        print(
+            f"Recomputed streaks for user_id={uid!r}: "
+            f"current={rec['current_streak']} longest={rec['longest_streak']}"
+        )
 
     print(f"Inserted {inserted} energy_logs for user_id={uid!r}")
     print(f"Upserted user_stats for user_id={uid!r}")

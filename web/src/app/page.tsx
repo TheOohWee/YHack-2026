@@ -1,25 +1,14 @@
 import "@/lib/load-env";
 
 import { Dashboard } from "@/components/Dashboard";
+import { DASHBOARD_USER_ID } from "@/lib/dashboard-user";
 import { getEnergySnapshot } from "@/lib/energy-service";
 import { flightSafeSnapshot } from "@/lib/snapshot-serialize";
 
 export const dynamic = "force-dynamic";
 
-type Search = { userId?: string | string[] };
-
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<Search>;
-}) {
-  const sp = await searchParams;
-  const raw = sp.userId;
-  const userId =
-    (Array.isArray(raw) ? raw[0] : raw)?.trim() ||
-    process.env.WATTSUP_DEFAULT_USER_ID ||
-    process.env.NEXT_PUBLIC_WATTSUP_USER_ID ||
-    "test-user";
+export default async function Home() {
+  const userId = DASHBOARD_USER_ID;
 
   let initialSnapshot = null;
   let initialError: string | null = null;
@@ -38,7 +27,6 @@ export default async function Home({
 
   return (
     <Dashboard
-      initialUserId={userId}
       initialSnapshot={initialSnapshot}
       initialError={initialError}
     />

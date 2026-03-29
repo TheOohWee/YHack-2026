@@ -1,15 +1,19 @@
 "use client";
 
-import { Radio } from "lucide-react";
+import { Radio, RefreshCw } from "lucide-react";
 
 export function DashboardHeader({
   active,
   lastPollMinutesAgo,
   lastPolledLabel,
+  onRefresh,
+  refreshLoading,
 }: {
   active: boolean;
   lastPollMinutesAgo: number | null;
   lastPolledLabel: string;
+  onRefresh: () => void;
+  refreshLoading: boolean;
 }) {
   const stale =
     !active && lastPollMinutesAgo !== null && lastPollMinutesAgo >= 20;
@@ -23,27 +27,41 @@ export function DashboardHeader({
         A quiet read on price, clean power, and what it means for your home —
         without the jargon.
       </p>
-      <div
-        className="mt-6 inline-flex flex-wrap items-center gap-3 rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--text-secondary)] shadow-[var(--shadow-card)]"
-        role="status"
-        aria-live="polite"
-      >
-        <Radio
-          className={`h-5 w-5 shrink-0 ${
-            active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
-          }`}
-          aria-hidden
-        />
-        <span>
-          {active ? "Readings are updating" : "Waiting for the next reading"}
-        </span>
-        <span className="text-[var(--text-muted)]">·</span>
-        <span>Last update: {lastPolledLabel}</span>
-        {stale ? (
-          <span className="rounded-full bg-[var(--sun)]/50 px-3 py-1 text-sm text-[var(--text)]">
-            Data is a little older — check back soon
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div
+          className="inline-flex max-w-full flex-wrap items-center gap-3 rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--text-secondary)] shadow-[var(--shadow-card)]"
+          role="status"
+          aria-live="polite"
+        >
+          <Radio
+            className={`h-5 w-5 shrink-0 ${
+              active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
+            }`}
+            aria-hidden
+          />
+          <span>
+            {active ? "Readings are updating" : "Waiting for the next reading"}
           </span>
-        ) : null}
+          <span className="text-[var(--text-muted)]">·</span>
+          <span>Last update: {lastPolledLabel}</span>
+          {stale ? (
+            <span className="rounded-full bg-[var(--sun)]/50 px-3 py-1 text-sm text-[var(--text)]">
+              Data is a little older — check back soon
+            </span>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshLoading}
+          className="btn-calm inline-flex min-h-[48px] shrink-0 items-center justify-center gap-2 self-start sm:self-center disabled:opacity-50"
+        >
+          <RefreshCw
+            className={`h-5 w-5 shrink-0 ${refreshLoading ? "animate-spin" : ""}`}
+            aria-hidden
+          />
+          Refresh data
+        </button>
       </div>
     </header>
   );
