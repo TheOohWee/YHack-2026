@@ -81,6 +81,16 @@ class Settings(BaseSettings):
     )
     gemini_pro_model: str = Field(default="gpt-4o", validation_alias="GEMINI_PRO_MODEL")
 
+    # K2 Think V2 (MBZUAI) — direct endpoint, used for Pro-tier energy reasoning.
+    k2_api_key: str | None = Field(default=None, validation_alias="K2_API_KEY")
+    k2_endpoint: str = Field(
+        default="https://api.k2think.ai/v1/chat/completions",
+        validation_alias="K2_ENDPOINT",
+    )
+    k2_model: str = Field(
+        default="MBZUAI-IFM/K2-Think-v2", validation_alias="K2_MODEL"
+    )
+
     hex_api_key: str | None = Field(default=None, validation_alias="HEX_API_KEY")
     hex_run_url: str | None = Field(default=None, validation_alias="HEX_RUN_URL")
 
