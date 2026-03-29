@@ -16,6 +16,7 @@ import { ImpactCounters } from "./ImpactCounters";
 import { InfoModal } from "./InfoModal";
 import { ManualBillSteps } from "./ManualBillSteps";
 import { PriceCard } from "./PriceCard";
+import { Sidebar } from "./Sidebar";
 import { Simulator } from "./Simulator";
 import { SkeletonChart } from "./SkeletonChart";
 
@@ -35,11 +36,12 @@ export function Dashboard({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(initialError);
   const userIdRef = useRef(userId);
-  const skipUserIdLoadOnce = useRef(true);
+  const hasMountedRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
+
     try {
       const res = await loadEnergySnapshot(userIdRef.current);
       if (!res.ok) {
@@ -66,8 +68,9 @@ export function Dashboard({
   }, [load]);
 
   useEffect(() => {
-    if (skipUserIdLoadOnce.current) {
-      skipUserIdLoadOnce.current = false;
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      void load();
       return;
     }
     void load();
@@ -82,9 +85,12 @@ export function Dashboard({
       : null;
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b border-[var(--border-soft)] bg-[var(--surface)]/80 px-4 py-4 backdrop-blur-sm sm:px-10">
-          <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="flex min-h-screen flex-col sm:flex-row">
+      <Sidebar />
+
+      <main className="flex flex-1 flex-col overflow-auto" id="main">
+        <div className="border-b border-[var(--border-soft)] bg-[var(--surface)]/80 px-4 py-4 backdrop-blur-sm sm:px-10">
+          <div className="mx-auto flex max-w-3xl flex-col gap-4 lg:max-w-4xl">
             <label className="flex flex-col gap-2 text-base font-medium text-[var(--text-secondary)] sm:flex-row sm:items-center sm:gap-4">
               <span className="min-w-[7rem]">Your account ID</span>
               <input
@@ -95,9 +101,11 @@ export function Dashboard({
                 autoComplete="username"
               />
             </label>
+
             <p id="user-help" className="sr-only">
               MongoDB user_id for energy_logs and user_stats
             </p>
+
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -109,18 +117,19 @@ export function Dashboard({
                   className={`h-5 w-5 shrink-0 ${loading ? "animate-spin" : ""}`}
                   aria-hidden
                 />
-                Refresh data
+                {loading ? "SYNCING…" : "SYNC DATA"}
               </button>
-              {loading ? (
-                <span className="text-base text-[var(--text-muted)]">
-                  Updating…
+
+              {loading && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  Fetching latest grid data<span className="blink">_</span>
                 </span>
-              ) : null}
+              )}
             </div>
           </div>
         </div>
 
-        <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10" id="main">
+        <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-10 lg:max-w-4xl">
           <div id="overview" className="scroll-mt-24">
             <DashboardHeader
               active={snap?.status.active ?? false}
@@ -128,14 +137,20 @@ export function Dashboard({
               lastPolledLabel={snap?.status.lastPolledLabel ?? "No polls yet"}
             />
 
-            {err ? (
+            {err && (
               <div
-                className="mb-8 rounded-[var(--radius-card)] border border-[var(--warm-alert)]/30 bg-[var(--warm-alert-bg)] px-5 py-4 text-base text-[var(--text)]"
+                className="mb-8 rounded-sm px-5 py-4 text-xs"
+                style={{
+                  background: "var(--warn-bg)",
+                  border: "2px solid var(--warn-border)",
+                  color: "var(--warn)",
+                  letterSpacing: "0.05em",
+                }}
                 role="alert"
               >
-                {err}
+                ⚠ {err}
               </div>
-            ) : null}
+            )}
 
             <HeroMetrics
               snapshot={snap}
@@ -149,11 +164,11 @@ export function Dashboard({
             </div>
           </div>
 
-          <div className="mt-12 space-y-6">
+          <div className="mt-12 space-y-4">
             <ExpandableSection
               id="impact-more"
-              title="Your impact and air quality"
-              description="Carbon savings and a fuller picture of savings — open when you want the details."
+              title="Impact & Air Quality"
+              description="Carbon savings and cumulative dollar totals."
             >
               {snap ? (
                 <ImpactCounters
@@ -161,7 +176,7 @@ export function Dashboard({
                   carbonKg={snap.stats.total_carbon_saved_kg}
                 />
               ) : (
-                <p className="text-base text-[var(--text-muted)]">
+                <p className="text-xs text-[var(--text-muted)]">
                   Connect your data to see impact totals.
                 </p>
               )}
@@ -169,11 +184,14 @@ export function Dashboard({
 
             <ExpandableSection
               id="price-detail"
-              title="Price in context"
-              description="How the current price compares with the last day of readings."
+              title="Price in Context"
+              description="How the current price compares with the last day."
             >
               {loading ? (
-                <div className="h-24 animate-pulse rounded-2xl bg-[var(--surface-muted)]" />
+                <div
+                  className="h-24 rounded-sm animate-pulse"
+                  style={{ background: "var(--surface-muted)" }}
+                />
               ) : (
                 <PriceCard
                   priceCents={price}
@@ -189,19 +207,26 @@ export function Dashboard({
             id="dial"
             className="relative scroll-mt-24 mt-14 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
-            <div className="absolute top-5 right-5 z-10">
+            <div className="absolute right-5 top-5 z-10">
               <InfoModal title="Efficiency dial">
-                <p>This dial blends renewable energy share and price into a single eco-efficiency score from 0–100%.</p>
-                <p className="mt-3">The detail index below the percentage is a raw composite score. The z-score compares your recent performance to your own history.</p>
+                <p>
+                  This dial blends renewable energy share and price into a
+                  single eco-efficiency score from 0–100%.
+                </p>
+                <p className="mt-3">
+                  The detail index below the percentage is a raw composite
+                  score. The z-score compares your recent performance to your
+                  own history.
+                </p>
               </InfoModal>
             </div>
+
             {!snap ? (
               loading ? (
                 <SkeletonChart />
               ) : (
-                <p className="text-base text-[var(--text-muted)]">
-                  No efficiency data yet. Check the message above or your
-                  account ID.
+                <p className="text-xs text-[var(--text-muted)]">
+                  No efficiency data yet<span className="blink">_</span>
                 </p>
               )
             ) : (
@@ -213,12 +238,20 @@ export function Dashboard({
             id="grid"
             className="relative scroll-mt-24 mt-10 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
-            <div className="absolute top-5 right-5 z-10">
+            <div className="absolute right-5 top-5 z-10">
               <InfoModal title="Grid heartbeat">
-                <p>The top chart tracks wind and solar as a percentage of total generation throughout the day — higher means greener power.</p>
-                <p className="mt-3">The stacked area chart below breaks down the full fuel mix: coal, gas, nuclear, imports, battery, wind, and solar. Tap the chart to see exact percentages at any point in time.</p>
+                <p>
+                  The top chart tracks wind and solar as a percentage of total
+                  generation throughout the day — higher means greener power.
+                </p>
+                <p className="mt-3">
+                  The stacked area chart below breaks down the full fuel mix:
+                  coal, gas, nuclear, imports, battery, wind, and solar. Tap
+                  the chart to see exact percentages at any point in time.
+                </p>
               </InfoModal>
             </div>
+
             <GridHeartbeat snapshot={snap} loading={loading} />
           </section>
 
@@ -226,12 +259,20 @@ export function Dashboard({
             id="insights"
             className="relative scroll-mt-24 mt-10 min-h-[240px] rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
-            <div className="absolute top-5 right-5 z-10">
+            <div className="absolute right-5 top-5 z-10">
               <InfoModal title="Weekly guidance">
-                <p>Personalized tips generated from your usage patterns and current grid conditions. When marked &ldquo;Personalized note,&rdquo; the insight comes from an AI analysis of your specific data.</p>
-                <p className="mt-3">&ldquo;General tips&rdquo; are shown when there isn&apos;t enough data for a personalized recommendation yet.</p>
+                <p>
+                  Personalized tips generated from your usage patterns and
+                  current grid conditions. When marked “Personalized note,” the
+                  insight comes from an AI analysis of your specific data.
+                </p>
+                <p className="mt-3">
+                  “General tips” are shown when there isn&apos;t enough data for
+                  a personalized recommendation yet.
+                </p>
               </InfoModal>
             </div>
+
             <AgentInsights
               text={snap?.insight ?? ""}
               ecoZScore={snap?.ecoZScore ?? null}
@@ -239,18 +280,16 @@ export function Dashboard({
             />
           </section>
 
-          <section id="plan" className="scroll-mt-24 mt-10">
+          <section id="plan" className="scroll-mt-24 mt-6">
             <Simulator />
           </section>
 
-          <section
-            id="records"
-            className="scroll-mt-24 mt-10 space-y-10 pb-16"
-          >
+          <section id="records" className="scroll-mt-24 mt-6 space-y-6 pb-16">
             <BillUploadPanel />
             <ManualBillSteps />
           </section>
-        </main>
+        </div>
+      </main>
     </div>
   );
 }

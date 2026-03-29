@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
-import { Source_Sans_3 } from "next/font/google";
+import { Space_Mono } from "next/font/google";
 import "./globals.css";
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-sans-display",
+const spaceMono = Space_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "700"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "WattsUp · Your energy, calmly",
-  description:
-    "A gentle view of grid signals, savings, and carbon — clarity without the noise.",
+  title: "WattsUp · Energy HQ",
+  description: "Retro energy command center — price, clean power, and savings at a glance.",
 };
 
 export default function RootLayout({
@@ -22,9 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${sourceSans.variable} min-h-screen font-sans antialiased`}
-      >
+      <body className={`${spaceMono.variable} min-h-screen antialiased`}>
+        {/* figma-capture */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
         {children}
       </body>
     </html>

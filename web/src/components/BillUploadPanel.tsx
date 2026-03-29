@@ -31,13 +31,22 @@ export function BillUploadPanel() {
   }, []);
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)]">
-      <h2 className="text-lg font-semibold text-[var(--text)]">
-        Add a bill file
+    <div
+      className="rounded-sm p-6"
+      style={{
+        background: "var(--surface-card)",
+        border: "2px solid var(--border-soft)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
+      <h2
+        className="text-sm font-bold uppercase tracking-widest"
+        style={{ color: "var(--text-secondary)", letterSpacing: "0.15em" }}
+      >
+        ▣ Add a Bill File
       </h2>
-      <p className="mt-2 max-w-xl text-base text-[var(--text-muted)]">
-        Drop a PDF or photo of your statement. Nothing leaves your browser until
-        you connect an account later — this step simply prepares your file.
+      <p className="mt-2 max-w-xl text-xs" style={{ color: "var(--text-muted)" }}>
+        Drop a PDF or photo of your statement. Nothing leaves your browser until you connect an account.
       </p>
 
       <div
@@ -53,11 +62,11 @@ export function BillUploadPanel() {
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
-        className={`mt-6 flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
-          isDragging
-            ? "border-[var(--accent)] bg-[var(--accent-wash)]"
-            : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--accent-soft)] hover:bg-[var(--accent-wash)]/60"
-        }`}
+        className="mt-5 flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-sm border-2 border-dashed px-6 py-8 text-center transition-colors"
+        style={{
+          borderColor: isDragging ? "var(--accent)" : "var(--border-medium)",
+          background: isDragging ? "var(--accent-wash)" : "var(--surface-muted)",
+        }}
         aria-label="Upload energy bill file. Click or drop a file."
       >
         <input
@@ -67,23 +76,36 @@ export function BillUploadPanel() {
           className="sr-only"
           onChange={(e) => acceptFiles(e.target.files)}
         />
-        <span className="rounded-full bg-[var(--accent-wash)] px-4 py-2 text-base font-medium text-[var(--accent)]">
+        <span
+          className="rounded-sm px-4 py-2 text-xs font-bold uppercase"
+          style={{
+            background: "var(--accent-wash)",
+            border: "2px solid var(--border-medium)",
+            color: "var(--accent)",
+            letterSpacing: "0.12em",
+          }}
+        >
           Choose file or drag here
         </span>
-        <span className="mt-3 text-base text-[var(--text-muted)]">
-          PDF, JPG, or PNG — up to what your browser allows
+        <span className="mt-3 text-[10px] uppercase" style={{ color: "var(--text-muted)", letterSpacing: "0.1em" }}>
+          PDF · JPG · PNG
         </span>
       </div>
 
-      {fileName ? (
+      {fileName && (
         <div
-          className="mt-5 rounded-xl border border-[var(--accent-soft)] bg-[var(--accent-wash)] px-4 py-3 text-base text-[var(--text)]"
+          className="mt-4 rounded-sm px-4 py-3 text-xs"
+          style={{
+            background: "var(--accent-wash)",
+            border: "2px solid var(--border-medium)",
+            color: "var(--pastel-mint)",
+          }}
           role="status"
         >
-          <span className="font-medium text-[var(--accent)]">Added: </span>
+          <span className="font-bold" style={{ color: "var(--accent)" }}>✓ LOADED: </span>
           {fileName}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

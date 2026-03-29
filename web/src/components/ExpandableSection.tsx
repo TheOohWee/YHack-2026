@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 type ExpandableSectionProps = {
   id: string;
   title: string;
@@ -17,44 +15,50 @@ export function ExpandableSection({
   children,
   defaultOpen = false,
 }: ExpandableSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-
   return (
     <details
       id={id}
-      open={open}
-      onToggle={(e) => setOpen(e.currentTarget.open)}
-      className="group rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow open:shadow-[var(--shadow-card-hover)]"
+      className="group rounded-sm transition-shadow"
+      style={{
+        background: "var(--surface-card)",
+        border: "2px solid var(--border-soft)",
+        boxShadow: "var(--shadow-card)",
+      }}
+      defaultOpen={defaultOpen}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-left [&::-webkit-details-marker]:hidden">
+      <summary
+        className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-left [&::-webkit-details-marker]:hidden"
+        style={{ userSelect: "none" }}
+      >
         <div>
-          <span className="text-lg font-semibold text-[var(--text)]">
+          <span
+            className="text-sm font-bold uppercase tracking-widest"
+            style={{ color: "var(--text-secondary)", letterSpacing: "0.12em" }}
+          >
             {title}
           </span>
-          {description ? (
-            <p className="mt-1 text-base text-[var(--text-muted)]">
+          {description && (
+            <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
               {description}
             </p>
-          ) : null}
+          )}
         </div>
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--surface-muted)] text-[var(--text-secondary)] transition group-open:rotate-180"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-sm font-bold transition-transform group-open:rotate-180"
+          style={{
+            background: "var(--surface-muted)",
+            border: "2px solid var(--border-soft)",
+            color: "var(--accent)",
+          }}
           aria-hidden
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+          ▼
         </span>
       </summary>
-      <div className="border-t border-[var(--border-soft)] px-6 pb-6 pt-2">
+      <div
+        className="px-6 pb-6 pt-2"
+        style={{ borderTop: "1px solid var(--border-soft)" }}
+      >
         {children}
       </div>
     </details>

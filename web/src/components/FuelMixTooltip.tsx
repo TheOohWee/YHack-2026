@@ -18,65 +18,40 @@ export function FuelMixTooltip({ active, payload }: Props) {
   });
   return (
     <div
-      className="max-w-[280px] rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-3 text-base shadow-[var(--shadow-card)]"
       role="status"
+      style={{
+        maxWidth: "240px",
+        background: "#071a0c",
+        border: "2px solid var(--border-glow)",
+        borderRadius: "4px",
+        padding: "12px 16px",
+        boxShadow: "4px 4px 0 rgba(0,0,0,0.60)",
+        fontFamily: "var(--font-game)",
+        fontSize: "11px",
+      }}
     >
-      <p className="mb-2 font-semibold text-[var(--text)]">{time}</p>
-      <ul className="space-y-1.5 text-[var(--text-secondary)]">
-        <li>
-          <span className="text-[var(--text-muted)]">Coal:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.coal.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Natural gas:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.natural_gas.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Nuclear:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.nuclear.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Imports:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.imports.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Other:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.other.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Battery storage:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.battery_storage.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Wind:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.wind.toFixed(1)}%
-          </span>
-        </li>
-        <li>
-          <span className="text-[var(--text-muted)]">Solar:</span>{" "}
-          <span className="tabular-nums text-[var(--text)]">
-            {d.solar.toFixed(1)}%
-          </span>
-        </li>
-        <li className="border-t border-[var(--border-soft)] pt-2 text-[var(--text-muted)]">
-          Price about{" "}
-          <span className="tabular-nums font-medium text-[var(--text)]">
-            {d.price_cents.toFixed(2)}
-          </span>{" "}
-          ¢ per kWh
+      <p style={{ marginBottom: "8px", fontWeight: "bold", color: "var(--pastel-mint)", letterSpacing: "0.08em" }}>{time}</p>
+      <ul style={{ margin: 0, padding: 0, listStyle: "none", lineHeight: 1.8 }}>
+        {[
+          ["Coal",           d.coal,            "#6b5b5b"],
+          ["Natural gas",    d.natural_gas,      "#c4a574"],
+          ["Nuclear",        d.nuclear,          "#e9d5ff"],
+          ["Imports",        d.imports,          "#bae6fd"],
+          ["Other",          d.other,            "#a89bc9"],
+          ["Battery",        d.battery_storage,  "#fce7f3"],
+          ["Wind",           d.wind,             "#4ade80"],
+          ["Solar",          d.solar,            "#fef08a"],
+        ].map(([label, val, color]) => (
+          <li key={label as string} style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
+            <span style={{ color: color as string }}>{label as string}:</span>
+            <span style={{ color: "var(--text)", fontWeight: "bold", tabularNums: "true" } as React.CSSProperties}>
+              {(val as number).toFixed(1)}%
+            </span>
+          </li>
+        ))}
+        <li style={{ borderTop: "1px solid var(--border-soft)", paddingTop: "6px", marginTop: "4px", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+          <span>Price</span>
+          <span style={{ color: "var(--pastel-sky)", fontWeight: "bold" }}>{d.price_cents.toFixed(2)}¢</span>
         </li>
       </ul>
     </div>
