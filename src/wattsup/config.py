@@ -133,6 +133,15 @@ class Settings(BaseSettings):
 
     zscore_window: int = Field(default=96, validation_alias="ZSCORE_WINDOW")
     zscore_sigma: float = Field(default=2.0, validation_alias="ZSCORE_SIGMA")
+    streak_dirty_grid_price_z: float = Field(
+        default=-2.0,
+        validation_alias="STREAK_DIRTY_GRID_PRICE_Z",
+        description=(
+            "Passive Clean Day: ComEd price sample z-score below this marks a dirty-grid window "
+            "(vs prior polls in history). User must be at/below their rolling median eco score "
+            "during such a poll to earn the day."
+        ),
+    )
     fallback_demand_mw: float = Field(default=90_000.0, validation_alias="FALLBACK_DEMAND_MW")
     pro_history_threshold: int = Field(
         default=36,
@@ -143,9 +152,12 @@ class Settings(BaseSettings):
     wattsup_host: str = Field(default="127.0.0.1", validation_alias="WATTSUP_HOST")
     wattsup_port: int = Field(default=8000, validation_alias="WATTSUP_PORT")
     wattsup_default_user_id: str = Field(
-        default="default",
+        default="test-user",
         validation_alias="WATTSUP_DEFAULT_USER_ID",
-        description="Maps chat webhooks (Slack/Telegram) to energy_logs user_id when not overridden.",
+        description=(
+            "Maps Slack/Telegram to energy_logs + streaks user_id. Must match the Next dashboard "
+            "user id (web/src/lib/dashboard-user.ts, default test-user) unless you override both."
+        ),
     )
 
     demo_local_eco: bool = Field(

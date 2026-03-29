@@ -2,8 +2,14 @@
 
 import { Loader2, Upload, Zap, FileText } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import { normalizeBillTextToAscii } from "@/lib/bill-analysis-extract";
 
 type Props = { userId: string };
+
+/** Model may still emit markdown; strip bold markers; force ASCII for display. */
+function plainBillText(raw: string): string {
+  return normalizeBillTextToAscii(raw.replace(/\*\*/g, ""));
+}
 
 export function BillUploadPanel({ userId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,20 +54,12 @@ export function BillUploadPanel({ userId }: Props) {
           return;
         }
 
-        const reader = res.body?.getReader();
-        if (!reader) {
-          setError("No response stream");
+        const text = await res.text();
+        if (!text.trim()) {
+          setError("Empty analysis response");
           return;
         }
-        const decoder = new TextDecoder();
-        let text = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          text += decoder.decode(value, { stream: true });
-          if (text.trim()) setLoading(false);
-          setAnalysis(text);
-        }
+        setAnalysis(plainBillText(text));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
       } finally {
@@ -105,17 +103,12 @@ export function BillUploadPanel({ userId }: Props) {
         setError(err.error || "Analysis failed");
         return;
       }
-      const reader = res.body?.getReader();
-      if (!reader) { setError("No response stream"); return; }
-      const decoder = new TextDecoder();
-      let text = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        text += decoder.decode(value, { stream: true });
-        if (text.trim()) setLoading(false);
-        setAnalysis(text);
+      const text = await res.text();
+      if (!text.trim()) {
+        setError("Empty analysis response");
+        return;
       }
+      setAnalysis(plainBillText(text));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {

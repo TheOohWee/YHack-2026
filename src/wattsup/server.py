@@ -20,6 +20,12 @@ from wattsup.slack_agent_bridge import (
 )
 from wattsup.slack_socket import start_slack_socket_background
 from wattsup.slack_util import verify_slack_request
+from wattsup.streak_triggers import apply_active_streak_if_eligible
+from wattsup.streaks import (
+    maybe_bump_demo_streak_on_agent_opt_in,
+    record_active_streak_win,
+    update_green_streak_for_user,
+)
 
 logging.getLogger("gridstatus").setLevel(logging.WARNING)
 logging.getLogger("gridstatusio").setLevel(logging.WARNING)
@@ -41,6 +47,12 @@ class PollRequest(BaseModel):
 class ChatRequest(BaseModel):
     user_id: str = Field(..., min_length=1)
     message: str = Field(..., min_length=1, max_length=8000)
+
+
+class ActiveStreakRequest(BaseModel):
+    """Mobile / push “Yes, shift my load” — credits today as an active streak win."""
+
+    user_id: str = Field(..., min_length=1)
 
 
 def _telegram_send(settings: Settings, chat_id: int | str, text: str) -> None:
@@ -108,7 +120,29 @@ def agent_chat(body: ChatRequest) -> dict:
         reply = agent_reply_for_user(settings, body.user_id, body.message)
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
+    apply_active_streak_if_eligible(
+        settings, body.user_id, body.message, source="http_agent_chat"
+    )
     return {"user_id": body.user_id, "reply": reply}
+
+
+@app.post("/streak/active-win")
+def streak_active_win(body: ActiveStreakRequest) -> dict:
+    settings = Settings()
+    try:
+        record_active_streak_win(settings, body.user_id, source="push_action")
+        doc = update_green_streak_for_user(settings, body.user_id)
+        maybe_bump_demo_streak_on_agent_opt_in(settings, body.user_id)
+    except Exception as e:
+        _log.exception("streak active-win failed for user_id=%s", body.user_id)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    if isinstance(doc, dict) and doc.get("skipped"):
+        return {"ok": True, "user_id": body.user_id, "streak": None}
+    return {
+        "ok": True,
+        "user_id": body.user_id,
+        "streak": doc.get("current_streak"),
+    }
 
 
 @app.post("/webhooks/slack")
@@ -156,6 +190,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks) 
         except Exception:
             _log.exception("telegram agent failed")
             reply = "Sorry — the agent hit an error. Check server logs."
+        apply_active_streak_if_eligible(settings, user_id, text, source="telegram")
         try:
             _telegram_send(settings, chat_id, reply)
         except httpx.HTTPError as e:

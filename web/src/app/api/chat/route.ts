@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { formatChatPlainText } from "@/lib/format-chat-plain";
+import { logK2ReasoningReturnFinal } from "@/lib/bill-analysis-extract";
 import { getDb } from "@/lib/mongodb";
 
 /** Chat uses the fast OpenAI-compatible gateway (K2V2 / Lava); bill analysis uses K2 Think v2 separately. */
@@ -40,7 +41,9 @@ When asked about timing (when to run appliances, charge EVs, etc.), reason step-
 
 Keep responses concise (2–4 short paragraphs). Be encouraging but data-driven. Use plain language, not jargon. When you cite numbers, round to 1 decimal place.
 
-Do not use Markdown in your reply: no ** or # for emphasis/headings, no [text](url) links, no backticks. Write plain sentences; for numbered steps use "1) " and "2) ".`;
+Do not use Markdown in your reply: no ** or # for emphasis/headings, no [text](url) links, no backticks. Write plain sentences; for numbered steps use "1) " and "2) ".
+
+CRITICAL: If you use internal reasoning, put it ONLY inside think tags: opening <think> and closing </think> (same pattern as K2 Think). After the closing </think> tag, output ONLY the short user-facing answer — no meta commentary outside those tags.`;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -185,8 +188,9 @@ export async function POST(req: NextRequest) {
     let content: string =
       data?.choices?.[0]?.message?.content ?? "No response from K2.";
 
-    // Strip <think> reasoning tags — keep only the final answer
-    content = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    content = logK2ReasoningReturnFinal(
+      typeof content === "string" ? content : String(content)
+    );
     content = formatChatPlainText(content);
 
     return NextResponse.json({

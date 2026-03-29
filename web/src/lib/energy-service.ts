@@ -225,39 +225,46 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
   };
 
   const streakDoc = streakRow as Record<string, unknown> | null;
-  const streakFromDb =
-    streakDoc != null
-      ? {
-          currentStreak: Math.max(
-            0,
-            Math.floor(
-              Number(streakDoc.current_streak ?? streakDoc.currentStreak ?? 0),
-            ),
-          ),
-          longestStreak: Math.max(
-            0,
-            Math.floor(
-              Number(streakDoc.longest_streak ?? streakDoc.longestStreak ?? 0),
-            ),
-          ),
-          streakCalendarDays: Math.max(
-            0,
-            Math.floor(
-              Number(
-                streakDoc.streak_calendar_days ??
-                  streakDoc.streakCalendarDays ??
-                  0,
-              ),
-            ),
-          ),
-          lastPollWasGreen:
-            typeof streakDoc.last_poll_was_green === "boolean"
-              ? streakDoc.last_poll_was_green
-              : null,
-          rollingMedianAtPoll: toFiniteNumber(streakDoc.rolling_median_at_poll),
-          lastEcoScore: toFiniteNumber(streakDoc.last_eco_score),
-        }
-      : null;
+  const streakFromDb = (() => {
+    if (streakDoc == null) return null;
+    const rawCur = Math.max(
+      0,
+      Math.floor(Number(streakDoc.current_streak ?? streakDoc.currentStreak ?? 0)),
+    );
+    const rawLng = Math.max(
+      0,
+      Math.floor(Number(streakDoc.longest_streak ?? streakDoc.longestStreak ?? 0)),
+    );
+    const rawCal = Math.max(
+      0,
+      Math.floor(
+        Number(
+          streakDoc.streak_calendar_days ?? streakDoc.streakCalendarDays ?? 0,
+        ),
+      ),
+    );
+    /** Hackathon / demo: set by seed script; not overwritten by poll recomputation. */
+    const demoCur = toFiniteNumber(streakDoc.demo_streak_current);
+    const demoLng = toFiniteNumber(streakDoc.demo_streak_longest);
+    const useDemoCur = demoCur != null && Number.isFinite(demoCur) && demoCur >= 0;
+    const useDemoLng = demoLng != null && Number.isFinite(demoLng) && demoLng >= 0;
+    const currentStreak = useDemoCur ? Math.floor(demoCur!) : rawCur;
+    const longestStreak = useDemoLng
+      ? Math.floor(demoLng!)
+      : rawLng;
+    const streakCalendarDays = useDemoCur ? currentStreak : rawCal;
+    return {
+      currentStreak,
+      longestStreak,
+      streakCalendarDays,
+      lastPollWasGreen:
+        typeof streakDoc.last_poll_was_green === "boolean"
+          ? streakDoc.last_poll_was_green
+          : null,
+      rollingMedianAtPoll: toFiniteNumber(streakDoc.rolling_median_at_poll),
+      lastEcoScore: toFiniteNumber(streakDoc.last_eco_score),
+    };
+  })();
 
   const streak = streakFromDb ?? {
     ...DEMO_GREEN_STREAK_FALLBACK,

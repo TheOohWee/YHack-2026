@@ -2,12 +2,15 @@
 
 import { DEMO_GREEN_STREAK_FALLBACK } from "@/lib/demo-streak";
 import type { GreenStreakState } from "@/types/energy";
+import { motion } from "framer-motion";
 import { CalendarDays, Flame, Leaf } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { InfoModal } from "./InfoModal";
 
 type StreakPlantHeroProps = {
   streak: GreenStreakState | null;
   loading: boolean;
+  userId: string;
 };
 
 const STREAK_TREE_FILES = [
@@ -19,16 +22,20 @@ const STREAK_TREE_FILES = [
 
 const STAGE_LABELS = ["Seedling", "Sapling", "Mature", "Flourishing"] as const;
 
+const STORAGE_PREFIX = "wattsup-streak-seen:";
+
 function publicSvgUrl(filename: string): string {
   return `/${encodeURIComponent(filename)}`;
 }
 
-/** 1–4 from green-poll streak and calendar-day span (same scale as stats cards). */
-function streakTreeStage(pollStreak: number, calendarDays: number): 1 | 2 | 3 | 4 {
-  const score = Math.max(pollStreak, calendarDays);
-  if (score <= 0) return 1;
-  if (score <= 2) return 2;
-  if (score <= 6) return 3;
+/**
+ * Eco-tree evolution: ~day 1 seed, ~day 3 sprout, day 7+ blooming (four SVG stages).
+ */
+function streakTreeStageFromDays(dayStreak: number): 1 | 2 | 3 | 4 {
+  const d = Math.max(0, Math.floor(dayStreak));
+  if (d <= 1) return 1;
+  if (d <= 3) return 2;
+  if (d < 7) return 3;
   return 4;
 }
 
@@ -39,7 +46,8 @@ function StreakTreeHeroImage({
   pollStreak: number;
   calendarDays: number;
 }) {
-  const stage = streakTreeStage(pollStreak, calendarDays);
+  const dayScore = Math.max(pollStreak, calendarDays);
+  const stage = streakTreeStageFromDays(dayScore);
   const idx = stage - 1;
   const src = publicSvgUrl(STREAK_TREE_FILES[idx]);
   const label = STAGE_LABELS[idx];
@@ -47,7 +55,7 @@ function StreakTreeHeroImage({
   return (
     <img
       src={src}
-      alt={`Energy streak tree — ${label} stage (${stage} of 4)`}
+      alt={`Eco-tree — ${label} (${stage} of 4)`}
       width={208}
       height={208}
       className="mx-auto h-44 w-auto max-h-52 max-w-[min(100%,16rem)] object-contain sm:h-52"
@@ -56,12 +64,113 @@ function StreakTreeHeroImage({
   );
 }
 
-export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
+function useStreakCelebration(
+  userId: string,
+  currentStreak: number,
+  isMock: boolean,
+  loading: boolean,
+  streakLoaded: boolean
+) {
+  const [celebrate, setCelebrate] = useState(false);
+  const [tickFrom, setTickFrom] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!streakLoaded || loading || isMock) {
+      return undefined;
+    }
+    if (typeof window === "undefined") return undefined;
+    const key = STORAGE_PREFIX + userId;
+    const raw = sessionStorage.getItem(key);
+    const prev = raw != null && raw !== "" ? Number.parseInt(raw, 10) : NaN;
+
+    if (Number.isFinite(prev) && currentStreak > prev) {
+      setTickFrom(prev);
+      setCelebrate(true);
+      sessionStorage.setItem(key, String(currentStreak));
+      const t = window.setTimeout(() => {
+        setCelebrate(false);
+        setTickFrom(null);
+      }, 3200);
+      return () => window.clearTimeout(t);
+    }
+
+    sessionStorage.setItem(key, String(currentStreak));
+    return undefined;
+  }, [userId, currentStreak, isMock, loading, streakLoaded]);
+
+  return { celebrate, tickFrom };
+}
+
+function AnimatedStreakNumber({
+  value,
+  tickFrom,
+}: {
+  value: number;
+  tickFrom: number | null;
+}) {
+  const [display, setDisplay] = useState(tickFrom ?? value);
+
+  useEffect(() => {
+    if (tickFrom == null || tickFrom >= value) {
+      setDisplay(value);
+      return undefined;
+    }
+    setDisplay(tickFrom);
+    const t0 = performance.now();
+    const dur = 850;
+    let raf = 0;
+    const ease = (p: number) => 1 - (1 - p) ** 3;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      setDisplay(Math.round(tickFrom + (value - tickFrom) * ease(p)));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, tickFrom]);
+
+  return (
+    <motion.span className="tabular-nums" layout="position">
+      {display}
+    </motion.span>
+  );
+}
+
+export function StreakPlantHero({
+  streak,
+  loading,
+  userId,
+}: StreakPlantHeroProps) {
   const data = streak ?? DEMO_GREEN_STREAK_FALLBACK;
   const current = data.currentStreak;
   const longest = data.longestStreak;
   const leafDays = Math.max(0, data.streakCalendarDays);
   const lastGreen = data.lastPollWasGreen;
+  const isMock = data.isMock === true;
+  const streakLoaded = !loading || streak != null;
+
+  const dayScore = Math.max(current, leafDays);
+  const treeStage = streakTreeStageFromDays(dayScore);
+  const stageLabel = STAGE_LABELS[treeStage - 1];
+
+  const { celebrate, tickFrom } = useStreakCelebration(
+    userId,
+    current,
+    isMock,
+    loading,
+    streakLoaded
+  );
+
+  const confettiPieces = useMemo(
+    () =>
+      Array.from({ length: 10 }, (_, i) => ({
+        id: i,
+        x: (Math.sin(i * 1.7) * 40 + (i % 3) * 12) as number,
+        delay: i * 0.04,
+        scale: 0.45 + (i % 3) * 0.2,
+      })),
+    []
+  );
 
   return (
     <section
@@ -69,19 +178,22 @@ export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
       aria-labelledby="green-streak-heading"
     >
       <div className="absolute top-4 right-4 z-10">
-        <InfoModal title="Green streak">
+        <InfoModal title="Clean Energy streak">
           <p>
-            After each poll we compare your eco-efficiency score to the median of
-            all your earlier scores. When the new score is higher, that poll counts
-            as a &ldquo;green&rdquo; check-in and your streak grows.
+            Your day streak grows when WattsUp confirms good choices: you accept
+            a coach suggestion in Slack/Telegram (active win), or background
+            polls show restrained usage during a dirty-grid window — when
+            ComEd&apos;s 5-minute price is unusually low vs your recent history
+            (price z-score below about -2), we look for eco scores at or under
+            your rolling median during those polls.
           </p>
           <p className="mt-3">
-            The tree icon advances through four stages — seedling, sapling,
-            mature, and flourishing — as your green polls and streak days add up.
+            On quiet grid days, beating your personal median eco-efficiency score
+            still earns the day. Streaks need consecutive qualifying UTC days.
           </p>
           <p className="mt-3">
-            Streaks reset when a poll is at or below your rolling median — keep
-            the grid on your side when you can.
+            The Eco-tree evolves: ~day 1 seedling, ~day 3 sapling, and a
+            flourishing tree from about day 7 onward.
           </p>
         </InfoModal>
       </div>
@@ -93,19 +205,79 @@ export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
             aria-hidden
           />
         ) : (
-          <StreakTreeHeroImage pollStreak={current} calendarDays={leafDays} />
+          <motion.div
+            className="relative mx-auto"
+            animate={
+              celebrate
+                ? {
+                    filter: [
+                      "drop-shadow(0 0 0px rgba(34,197,94,0))",
+                      "drop-shadow(0 0 28px rgba(34,197,94,0.55))",
+                      "drop-shadow(0 0 12px rgba(34,197,94,0.35))",
+                    ],
+                  }
+                : { filter: "drop-shadow(0 0 0px rgba(34,197,94,0))" }
+            }
+            transition={{ duration: 1.4, times: [0, 0.45, 1] }}
+          >
+            {celebrate ? (
+              <div
+                className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center"
+                aria-hidden
+              >
+                {confettiPieces.map((p) => (
+                  <motion.span
+                    key={p.id}
+                    className="absolute top-1/2 h-2 w-2 rounded-full bg-emerald-400/90"
+                    initial={{ opacity: 0, x: 0, y: 0, scale: p.scale }}
+                    animate={{
+                      opacity: [0, 1, 0.9, 0],
+                      x: p.x,
+                      y: [-8, -52 - p.id * 4, -72],
+                      rotate: [0, p.x > 0 ? 40 : -40],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      delay: p.delay,
+                      ease: "easeOut",
+                    }}
+                  />
+                ))}
+              </div>
+            ) : null}
+            <motion.div
+              animate={
+                celebrate ? { scale: [1, 1.04, 1] } : { scale: 1 }
+              }
+              transition={{ duration: 0.75 }}
+            >
+              <StreakTreeHeroImage
+                pollStreak={current}
+                calendarDays={leafDays}
+              />
+            </motion.div>
+          </motion.div>
         )}
 
         <h2
           id="green-streak-heading"
           className="mt-6 text-xl font-semibold text-[var(--text)] sm:text-2xl"
         >
-          Your green streak
+          Your Clean Energy streak
         </h2>
         <p className="mt-2 max-w-md text-base text-[var(--text-muted)]">
-          Grow your plant with consecutive polls where your score beats your
-          personal median — small wins that add up.
+          Active wins (you said yes to shifting load) and passive clean days
+          during grid spikes — your Eco-tree levels up with you.
         </p>
+
+        {celebrate ? (
+          <p
+            className="mt-3 max-w-md rounded-xl bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-800 dark:text-emerald-200"
+            role="status"
+          >
+            Streak up — nice work keeping usage smart when it mattered.
+          </p>
+        ) : null}
 
         {loading && streak == null ? (
           <div className="mt-6 flex w-full max-w-md flex-wrap justify-center gap-3">
@@ -123,10 +295,10 @@ export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
                 />
                 <div className="text-left">
                   <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                    Green polls
+                    Day streak
                   </p>
                   <p className="text-2xl font-semibold tabular-nums text-[var(--text)]">
-                    {current}
+                    <AnimatedStreakNumber value={current} tickFrom={tickFrom} />
                   </p>
                 </div>
               </div>
@@ -153,27 +325,27 @@ export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
                 />
                 <div className="text-left">
                   <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                    Green days
+                    Eco-tree stage
                   </p>
-                  <p className="text-2xl font-semibold tabular-nums text-[var(--text)]">
-                    {leafDays}
+                  <p className="text-lg font-semibold text-[var(--text)]">
+                    {stageLabel}
                   </p>
                 </div>
               </div>
             </div>
             {lastGreen != null ? (
               <p className="max-w-md text-sm text-[var(--text-secondary)]">
-                Last poll:{" "}
+                Today&apos;s grid day:{" "}
                 <span className="font-medium text-[var(--text)]">
                   {lastGreen
-                    ? "Above your median — nice."
-                    : "At or below your median."}
+                    ? "Qualified — streak can grow."
+                    : "Needs a clean win to count."}
                 </span>
                 {data.rollingMedianAtPoll != null &&
                 data.lastEcoScore != null ? (
                   <span className="text-[var(--text-muted)]">
                     {" "}
-                    (score {data.lastEcoScore.toFixed(1)} vs median{" "}
+                    (last eco score {data.lastEcoScore.toFixed(1)} vs median{" "}
                     {data.rollingMedianAtPoll.toFixed(1)})
                   </span>
                 ) : null}

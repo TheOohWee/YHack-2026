@@ -104,6 +104,7 @@ export function Dashboard({
           <StreakPlantHero
             streak={snap?.streak ?? null}
             loading={loading && snap == null}
+            userId={DASHBOARD_USER_ID}
           />
 
           <HeroMetrics

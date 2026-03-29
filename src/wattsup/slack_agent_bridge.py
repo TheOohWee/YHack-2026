@@ -11,6 +11,7 @@ from wattsup.chat_agent import answer_without_llm, run_chat_agent
 from wattsup.config import Settings
 from wattsup.demo_hardware import maybe_local_eco_followup
 from wattsup.plain_text import format_user_facing_reply
+from wattsup.streak_triggers import apply_active_streak_if_eligible
 
 _log = logging.getLogger(__name__)
 
@@ -65,3 +66,7 @@ def slack_user_message_complete(
     follow = maybe_local_eco_followup(settings, user_text)
     if follow:
         slack_post_message(settings, channel, follow, thread_ts)
+
+    apply_active_streak_if_eligible(
+        settings, user_id, user_text, source="slack_agent"
+    )

@@ -3,29 +3,34 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
+import {
+  extractBillUserFacingText,
+  logK2ReasoningReturnFinal,
+  normalizeBillTextToAscii,
+} from "@/lib/bill-analysis-extract";
 
 const K2_ENDPOINT =
   process.env.K2_ENDPOINT || "https://api.k2think.ai/v1/chat/completions";
 const K2_MODEL = process.env.K2_MODEL || "MBZUAI-IFM/K2-Think-v2";
 const K2_API_KEY = process.env.K2_API_KEY || "";
 
-const BILL_ANALYSIS_PROMPT = `You are WattsUp AI. Extract and summarize an electricity bill. Be concise — no fluff, no reasoning, no preamble.
+const BILL_ANALYSIS_PROMPT = `You are WattsUp AI. Read the user's electricity bill and output ONLY the user-visible result.
 
-Reply in EXACTLY this format (fill in the brackets):
+Output shape (plain ASCII only - use normal hyphen - not en/em dash, straight quotes, write "c/kWh" not cent signs):
+1) One short paragraph (max 5 sentences): billing period, provider name, total due, kWh used, effective c/kWh vs a rough Illinois/ComEd benchmark near 8 c/kWh, and whether usage seems high, typical, or low (one short phrase).
 
-**Period:** [billing period]
-**Provider:** [provider name]
-**Total Due:** $[amount]
-**Usage:** [kWh] kWh ([high/average/low] for Illinois)
-**Your Rate:** [X] ¢/kWh ([above/below/near] ComEd avg of ~8 ¢/kWh)
+2) A blank line, then a line that is exactly: Suggestions:
+3) Then 2-4 lines; each line starts with "- " (hyphen space) and one concrete savings tip. No sub-bullets, no numbered lists.
 
-**Top Savings Tips:**
-1. [specific tip] — save ~$[amount]/mo
-2. [specific tip] — save ~$[amount]/mo
+Hard rules:
+- First character you output must begin the summary paragraph (e.g. the word "The" or "This"). Do not repeat, summarize, or quote these instructions.
+- Never output planning, "Let's", "We need", "The instruction", "Thus", "Now", "Final answer", formatting reminders, "ASCII", "unicode", "stray characters", "ensure", or any meta-commentary. Start directly with the bill summary sentence.
+- No markdown: no **, *, __, #, backticks. No preamble or sign-off.
+- If a value is missing from the bill, write "not found". Never invent amounts or kWh.
 
-**Verdict:** [one sentence — are they overpaying, doing fine, etc.]
+CRITICAL (K2 Think V2): Put ALL internal reasoning ONLY inside one pair of think tags (same XML-style pattern K2 uses: think open tag, your reasoning, think close tag). After the close tag, output ONLY the bill summary and Suggestions block — no other preamble. The server removes everything before the first close tag for the UI and logs the reasoning to the terminal only.
 
-If you cannot extract a field from the bill text, write "not found". Never make up numbers.`;
+STOP after the last suggestion bullet line. Do not add verification, checklists, or lines like "Now we need to ensure...". End of output.`;
 
 async function extractBillText(req: NextRequest): Promise<{ billText: string; userId: string } | NextResponse> {
   const ct = req.headers.get("content-type") || "";
@@ -164,9 +169,9 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: K2_MODEL,
         messages,
-        temperature: 0.3,
-        max_tokens: 512,
-        stream: true,
+        temperature: 0.2,
+        max_tokens: 400,
+        stream: false,
       }),
     });
 
@@ -178,75 +183,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        const reader = res.body!.getReader();
-        let insideThink = false;
-        let buffer = "";
+    const data: {
+      choices?: Array<{ message?: { content?: string | null } }>;
+    } = await res.json();
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+    let content = data.choices?.[0]?.message?.content ?? "";
+    if (typeof content !== "string") content = String(content ?? "");
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
+    // K2 Think V2: reasoning inside think tags; UI only sees text after the closing tag
+    content = logK2ReasoningReturnFinal(
+      content,
+      "[K2 Think V2 bill extraction - reasoning (terminal only, not UI)]"
+    );
+    const cleaned = extractBillUserFacingText(content);
+    const body = normalizeBillTextToAscii(cleaned || content.trim());
 
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              const token: string = parsed.choices?.[0]?.delta?.content ?? "";
-              if (!token) continue;
-
-              buffer += token;
-
-              while (true) {
-                if (insideThink) {
-                  const closeIdx = buffer.indexOf("</think>");
-                  if (closeIdx === -1) {
-                    buffer = "";
-                    break;
-                  }
-                  buffer = buffer.slice(closeIdx + 8);
-                  insideThink = false;
-                } else {
-                  const openIdx = buffer.indexOf("<think>");
-                  if (openIdx === -1) {
-                    const safe = buffer.length > 7 ? buffer.slice(0, -7) : "";
-                    if (safe) {
-                      controller.enqueue(encoder.encode(safe));
-                      buffer = buffer.slice(safe.length);
-                    }
-                    break;
-                  }
-                  const before = buffer.slice(0, openIdx);
-                  if (before) controller.enqueue(encoder.encode(before));
-                  buffer = buffer.slice(openIdx + 7);
-                  insideThink = true;
-                }
-              }
-            } catch {
-              // skip malformed SSE chunks
-            }
-          }
-        }
-
-        if (!insideThink && buffer) {
-          controller.enqueue(encoder.encode(buffer));
-        }
-        controller.close();
-      },
-    });
-
-    return new Response(readable, {
+    return new Response(body, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
         "Cache-Control": "no-cache",
       },
     });
