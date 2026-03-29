@@ -6,6 +6,7 @@ import httpx
 
 from wattsup.config import Settings
 from wattsup.models import PollContext
+from wattsup.plain_text import format_user_facing_reply
 from wattsup.tools.base import AgentTool, ToolResult
 
 
@@ -36,7 +37,9 @@ class PushNotificationTool(AgentTool):
 
     def run(self, ctx: PollContext, settings: Settings) -> ToolResult[dict]:
         analysis = (ctx.llm_analysis or "").strip()
-        text = analysis if analysis else _friendly_alert(ctx)
+        text = (
+            format_user_facing_reply(analysis) if analysis else _friendly_alert(ctx)
+        )
         results: dict[str, Any] = {}
         errors: list[str] = []
 

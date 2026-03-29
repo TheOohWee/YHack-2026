@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { formatChatPlainText } from "@/lib/format-chat-plain";
 import { getDb } from "@/lib/mongodb";
 
 /** Chat uses the fast OpenAI-compatible gateway (K2V2 / Lava); bill analysis uses K2 Think v2 separately. */
@@ -37,7 +38,9 @@ When asked about timing (when to run appliances, charge EVs, etc.), reason step-
 3. Recent trends — is it getting better or worse?
 4. Your recommendation with specific numbers
 
-Keep responses concise (2-4 paragraphs max). Be encouraging but data-driven. Use plain language, not jargon. When you cite numbers, round to 1 decimal place.`;
+Keep responses concise (2–4 short paragraphs). Be encouraging but data-driven. Use plain language, not jargon. When you cite numbers, round to 1 decimal place.
+
+Do not use Markdown in your reply: no ** or # for emphasis/headings, no [text](url) links, no backticks. Write plain sentences; for numbered steps use "1) " and "2) ".`;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -184,6 +187,7 @@ export async function POST(req: NextRequest) {
 
     // Strip <think> reasoning tags — keep only the final answer
     content = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    content = formatChatPlainText(content);
 
     return NextResponse.json({
       message: { role: "assistant", content },

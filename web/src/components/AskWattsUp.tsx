@@ -5,6 +5,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Message = { role: "user" | "assistant"; content: string };
 
+function AssistantBubbleText({ content }: { content: string }) {
+  const blocks = content
+    .split(/\n\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (blocks.length <= 1) {
+    return <span className="block whitespace-pre-line">{content}</span>;
+  }
+  return (
+    <div className="space-y-2">
+      {blocks.map((block, i) => (
+        <p key={i} className="m-0 whitespace-pre-line leading-relaxed">
+          {block}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 const SUGGESTIONS = [
   "Should I run my dishwasher now or wait?",
   "When is the cheapest time to do laundry today?",
@@ -170,7 +189,11 @@ export function AskWattsUp({ userId }: { userId: string }) {
                       : "ask-wattsup-bubble-assistant"
                   }
                 >
-                  {m.content}
+                  {m.role === "assistant" ? (
+                    <AssistantBubbleText content={m.content} />
+                  ) : (
+                    m.content
+                  )}
                 </div>
               </div>
             ))}

@@ -9,6 +9,7 @@ import httpx
 
 from wattsup.chat_agent import answer_without_llm, run_chat_agent
 from wattsup.config import Settings
+from wattsup.plain_text import format_user_facing_reply
 
 _log = logging.getLogger(__name__)
 
@@ -16,8 +17,9 @@ _log = logging.getLogger(__name__)
 def agent_reply_for_user(settings: Settings, user_id: str, question: str) -> str:
     if settings.k2v2_base_url and settings.k2v2_api_key:
         reply, _trace = run_chat_agent(user_id, question, settings)
-        return reply
-    return answer_without_llm(user_id, settings)
+    else:
+        reply = answer_without_llm(user_id, settings)
+    return format_user_facing_reply(reply)
 
 
 def slack_post_message(
@@ -26,6 +28,7 @@ def slack_post_message(
     if not settings.slack_bot_token:
         _log.warning("Slack: SLACK_BOT_TOKEN not set")
         return
+    text = format_user_facing_reply(text)
     body: dict[str, Any] = {"channel": channel, "text": text[:4000]}
     if thread_ts:
         body["thread_ts"] = thread_ts
