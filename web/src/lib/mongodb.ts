@@ -1,3 +1,5 @@
+import "@/lib/load-env";
+
 import { MongoClient } from "mongodb";
 
 type GlobalMongo = typeof globalThis & {
@@ -7,7 +9,9 @@ type GlobalMongo = typeof globalThis & {
 export async function getDb() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    throw new Error("MONGODB_URI is not set (add to web/.env.local)");
+    throw new Error(
+      "MONGODB_URI is not set. Add it to the repo-root .env (next to pyproject.toml) or web/.env.local, then restart `npm run dev`."
+    );
   }
 
   const g = globalThis as GlobalMongo;

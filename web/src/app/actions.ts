@@ -1,5 +1,7 @@
 "use server";
 
+import "@/lib/load-env";
+
 import { getEnergySnapshot } from "@/lib/energy-service";
 import type { EnergySnapshot } from "@/types/energy";
 

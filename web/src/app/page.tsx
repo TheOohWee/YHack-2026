@@ -1,3 +1,5 @@
+import "@/lib/load-env";
+
 import { Dashboard } from "@/components/Dashboard";
 import { getEnergySnapshot } from "@/lib/energy-service";
 
