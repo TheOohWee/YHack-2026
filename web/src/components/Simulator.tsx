@@ -1,15 +1,13 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 
 /** Simple what-if: shift fraction of monthly kWh from high-priced to lower-priced periods. */
 export function Simulator() {
   const [hours, setHours] = useState(2);
   const [monthlyKwh] = useState(750);
-  const [avgHigh] = useState(9); // ¢/kWh proxy peak
-  const [avgLow] = useState(4); // ¢/kWh proxy off-peak
+  const [avgHigh] = useState(9);
+  const [avgLow] = useState(4);
 
   const result = useMemo(() => {
     const shiftFrac = Math.min(1, hours / 24) * 0.35;
@@ -20,19 +18,16 @@ export function Simulator() {
   }, [hours, monthlyKwh, avgHigh, avgLow]);
 
   return (
-    <div className="rounded-xl border border-slate-700/80 bg-slate-900/40 p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <SlidersHorizontal className="h-4 w-4 text-slate-400" aria-hidden />
-        <h2 className="text-sm font-semibold text-slate-200">
-          Load-shift simulator
-        </h2>
-      </div>
-      <p className="mb-4 text-xs text-slate-400">
-        Slide to explore moving flexible usage by a few hours — a planning toy,
-        not a bill guarantee.
+    <div className="rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)]">
+      <h2 className="text-lg font-semibold text-[var(--text)]">
+        What if you shifted a little usage?
+      </h2>
+      <p className="mt-2 max-w-2xl text-base text-[var(--text-muted)]">
+        Slide to imagine moving flexible chores by a few hours. This is a
+        planning helper, not a promise on your bill.
       </p>
-      <label htmlFor="shift-hours" className="sr-only">
-        Hours to shift usage
+      <label htmlFor="shift-hours" className="mt-6 block text-base font-medium text-[var(--text-secondary)]">
+        Hours to shift flexible usage
       </label>
       <input
         id="shift-hours"
@@ -42,31 +37,28 @@ export function Simulator() {
         step={0.5}
         value={hours}
         onChange={(e) => setHours(Number(e.target.value))}
-        className="mb-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-700 accent-emerald-500"
+        className="mt-3 h-3 w-full max-w-xl cursor-pointer appearance-none rounded-full bg-[var(--surface-muted)] accent-[var(--accent)]"
       />
-      <div className="mb-3 flex justify-between text-xs text-slate-500">
+      <div className="mt-2 flex max-w-xl justify-between text-base text-[var(--text-muted)]">
         <span>Same-day timing</span>
-        <span className="tabular-nums text-slate-300">{hours} h shift</span>
+        <span className="tabular-nums font-medium text-[var(--text)]">
+          {hours} hours
+        </span>
       </div>
-      <motion.div
-        className="grid gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-sm"
-        key={hours}
-        initial={{ opacity: 0.7 }}
-        animate={{ opacity: 1 }}
-      >
-        <p className="text-slate-300">
+      <div className="mt-6 max-w-xl rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-4">
+        <p className="text-lg text-[var(--text)]">
           Rough monthly savings:{" "}
-          <span className="font-semibold tabular-nums text-emerald-400">
+          <span className="font-semibold tabular-nums text-[var(--accent)]">
             ${result.savings.toFixed(2)}
           </span>
         </p>
-        <p className="text-xs text-slate-500">
-          illustrative CO₂ avoided (~):{" "}
-          <span className="tabular-nums text-slate-400">
+        <p className="mt-2 text-base text-[var(--text-muted)]">
+          Illustrative CO₂ avoided:{" "}
+          <span className="tabular-nums text-[var(--text-secondary)]">
             {result.coavoid.toFixed(1)} kg
           </span>
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 }

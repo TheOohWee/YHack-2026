@@ -18,49 +18,65 @@ export function FuelMixTooltip({ active, payload }: Props) {
   });
   return (
     <div
-      className="max-w-[260px] rounded-lg border border-slate-600 bg-slate-900/95 px-3 py-2 text-xs shadow-xl backdrop-blur"
+      className="max-w-[280px] rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-3 text-base shadow-[var(--shadow-card)]"
       role="status"
     >
-      <p className="mb-2 font-medium text-slate-200">{time}</p>
-      <ul className="space-y-1 text-slate-300">
+      <p className="mb-2 font-semibold text-[var(--text)]">{time}</p>
+      <ul className="space-y-1.5 text-[var(--text-secondary)]">
         <li>
-          <span className="text-stone-400">Coal:</span>{" "}
-          <span className="tabular-nums">{d.coal.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Coal:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.coal.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-orange-300">Natural gas:</span>{" "}
-          <span className="tabular-nums">{d.natural_gas.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Natural gas:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.natural_gas.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-rose-300">Nuclear:</span>{" "}
-          <span className="tabular-nums">{d.nuclear.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Nuclear:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.nuclear.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-sky-300">Imports:</span>{" "}
-          <span className="tabular-nums">{d.imports.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Imports:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.imports.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-violet-300">Other:</span>{" "}
-          <span className="tabular-nums">{d.other.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Other:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.other.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-fuchsia-300">Battery storage:</span>{" "}
-          <span className="tabular-nums">{d.battery_storage.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Battery storage:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.battery_storage.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-sky-200">Wind:</span>{" "}
-          <span className="tabular-nums">{d.wind.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Wind:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.wind.toFixed(1)}%
+          </span>
         </li>
         <li>
-          <span className="text-amber-300">Solar:</span>{" "}
-          <span className="tabular-nums">{d.solar.toFixed(1)}%</span>
+          <span className="text-[var(--text-muted)]">Solar:</span>{" "}
+          <span className="tabular-nums text-[var(--text)]">
+            {d.solar.toFixed(1)}%
+          </span>
         </li>
-        <li className="border-t border-slate-700 pt-1 text-slate-400">
-          Price ~{" "}
-          <span className="tabular-nums text-slate-200">
+        <li className="border-t border-[var(--border-soft)] pt-2 text-[var(--text-muted)]">
+          Price about{" "}
+          <span className="tabular-nums font-medium text-[var(--text)]">
             {d.price_cents.toFixed(2)}
           </span>{" "}
-          ¢
+          ¢ per kWh
         </li>
       </ul>
     </div>

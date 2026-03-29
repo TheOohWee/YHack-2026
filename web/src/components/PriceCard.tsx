@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Zap } from "lucide-react";
 
 export function PriceCard({
@@ -15,63 +14,58 @@ export function PriceCard({
   zScore: number | null;
 }) {
   return (
-    <motion.div
-      className={`rounded-xl border px-4 py-3 transition-shadow ${
+    <div
+      className={`rounded-[var(--radius-card)] border px-5 py-5 transition-shadow ${
         pulseAmber
-          ? "border-amber-500/60 bg-amber-950/30 shadow-[0_0_24px_rgba(245,158,11,0.18)]"
-          : "border-slate-700/80 bg-slate-900/50"
+          ? "border-[var(--warm-alert)]/35 bg-[var(--warm-alert-bg)]"
+          : "border-[var(--border-soft)] bg-[var(--surface-muted)]"
       }`}
-      animate={
-        pulseAmber
-          ? {
-              boxShadow: [
-                "0 0 20px rgba(245,158,11,0.12)",
-                "0 0 32px rgba(245,158,11,0.28)",
-                "0 0 20px rgba(245,158,11,0.12)",
-              ],
-            }
-          : {}
-      }
-      transition={
-        pulseAmber ? { duration: 2.2, repeat: Infinity, ease: "easeInOut" } : {}
-      }
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
           <Zap
-            className={`h-4 w-4 ${pulseAmber ? "text-amber-400" : "text-slate-400"}`}
+            className={`mt-1 h-5 w-5 shrink-0 ${
+              pulseAmber ? "text-[var(--warm-alert)]" : "text-[var(--accent)]"
+            }`}
             aria-hidden
           />
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              ComEd RT price
+            <p className="text-base font-medium text-[var(--text-secondary)]">
+              Live reference price
             </p>
-            <p className="text-xl font-semibold tabular-nums text-slate-100">
-              {priceCents != null ? `${priceCents.toFixed(2)}¢` : "—"}
+            <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--text)]">
+              {priceCents != null ? `${priceCents.toFixed(2)}¢` : "—"}{" "}
+              <span className="text-lg font-medium text-[var(--text-muted)]">
+                per kWh
+              </span>
             </p>
           </div>
         </div>
-        <div className="text-right text-xs text-slate-400">
+        <div className="text-base text-[var(--text-muted)] sm:text-right">
           <p>
-            24h mean:{" "}
-            <span className="tabular-nums text-slate-300">
+            24-hour average:{" "}
+            <span className="tabular-nums text-[var(--text)]">
               {avg24h != null ? `${avg24h.toFixed(2)}¢` : "—"}
             </span>
           </p>
-          <p className="mt-0.5">
-            σ vs window:{" "}
-            <span className="tabular-nums text-slate-300">
+          <p className="mt-1">
+            Compared with recent window:{" "}
+            <span className="tabular-nums text-[var(--text)]">
               {zScore != null ? zScore.toFixed(2) : "—"}
             </span>
           </p>
         </div>
       </div>
-      {pulseAmber && (
-        <p className="mt-2 text-[11px] text-amber-200/90">
-          Price is elevated vs the last day of readings — a gentle nudge to defer
-          heavy loads if you can.
+      {pulseAmber ? (
+        <p className="mt-4 text-base text-[var(--text-secondary)]">
+          Prices are a bit higher than usual today. If you can wait on large
+          appliances, tonight or tomorrow may be gentler on your bill.
+        </p>
+      ) : (
+        <p className="mt-4 text-base text-[var(--text-muted)]">
+          Prices look typical for the last day of readings.
         </p>
       )}
-    </motion.div>
+    </div>
   );
 }

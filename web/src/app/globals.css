@@ -1,37 +1,124 @@
 @import "tailwindcss";
 
-/* Midnight slate — WCAG-friendly contrasts on body text */
+/*
+  WattsUp design system — calm energy wellness
+  Warm off-whites, soft sage & earth tones, readable type, generous spacing.
+*/
+
 :root {
-  --background: #030712;
-  --foreground: #e2e8f0;
-  --muted: #94a3b8;
-  --emerald: #10b981;
-  --amber: #f59e0b;
+  /* Surfaces */
+  --bg-page: #f4f1eb;
+  --bg-mist: linear-gradient(
+    165deg,
+    #eef6f0 0%,
+    #f7f4ee 38%,
+    #faf6ef 100%
+  );
+  --surface: #fffcf7;
+  --surface-muted: #f2efe8;
+  --border-soft: #e0dbd2;
+  --border-focus: #6b9b7a;
+
+  /* Text — strong but not harsh */
+  --text: #2a332c;
+  --text-secondary: #4f5c52;
+  --text-muted: #6f7a72;
+
+  /* Accent — clean energy, natural */
+  --accent: #3d6b4f;
+  --accent-hover: #325a42;
+  --accent-soft: #c8e0cd;
+  --accent-wash: #e8f2ea;
+
+  /* Supporting */
+  --sky: #b8d4e8;
+  --sun: #e9dcc8;
+  --clay: #c4a88a;
+  --warm-alert: #b8860b;
+  --warm-alert-bg: #faf4e6;
+
+  --shadow-card: 0 4px 24px rgba(42, 51, 44, 0.06);
+  --shadow-card-hover: 0 8px 32px rgba(42, 51, 44, 0.08);
+  --radius-card: 1.25rem;
+  --radius-control: 9999px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text);
+  --font-sans: var(--font-sans-display);
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--bg-page);
+  background-image: var(--bg-mist);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-sans-display), system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.6;
 }
 
 ::selection {
-  background: rgba(16, 185, 129, 0.35);
-  color: #f8fafc;
+  background: rgba(61, 107, 79, 0.2);
+  color: var(--text);
 }
 
 :focus-visible {
-  outline: 2px solid var(--emerald);
-  outline-offset: 2px;
+  outline: 3px solid var(--border-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reusable calm controls */
+@layer components {
+  .btn-calm {
+    @apply inline-flex items-center justify-center rounded-full px-6 py-3 text-base font-semibold transition-colors;
+    background: var(--accent);
+    color: #f8faf8;
+    min-height: 48px;
+  }
+  .btn-calm:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .btn-calm:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-calm-secondary {
+    @apply inline-flex items-center justify-center rounded-full border-2 px-6 py-3 text-base font-semibold transition-colors;
+    border-color: var(--border-soft);
+    background: var(--surface);
+    color: var(--text);
+    min-height: 48px;
+  }
+  .btn-calm-secondary:hover {
+    border-color: var(--accent-soft);
+    background: var(--accent-wash);
+  }
+  .input-calm {
+    @apply rounded-2xl border-2 px-4 py-3 text-lg text-[var(--text)] transition-colors;
+    border-color: var(--border-soft);
+    background: var(--surface-muted);
+    min-height: 52px;
+  }
+  .input-calm:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px rgba(61, 107, 79, 0.15);
+  }
 }

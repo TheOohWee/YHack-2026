@@ -2,15 +2,18 @@
 
 import { loadEnergySnapshot } from "@/app/actions";
 import type { EnergySnapshot } from "@/types/energy";
-import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentInsights } from "./AgentInsights";
+import { BillUploadPanel } from "./BillUploadPanel";
 import { DashboardHeader } from "./DashboardHeader";
 import { EfficiencyDial } from "./EfficiencyDial";
+import { ExpandableSection } from "./ExpandableSection";
 import { GoldenWindowBanner } from "./GoldenWindowBanner";
 import { GridHeartbeat } from "./GridHeartbeat";
+import { HeroMetrics } from "./HeroMetrics";
 import { ImpactCounters } from "./ImpactCounters";
+import { ManualBillSteps } from "./ManualBillSteps";
 import { PriceCard } from "./PriceCard";
 import { Sidebar } from "./Sidebar";
 import { Simulator } from "./Simulator";
@@ -79,129 +82,158 @@ export function Dashboard({
       : null;
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-slate-200">
+    <div className="flex min-h-screen flex-col sm:flex-row">
       <Sidebar />
       <main className="flex flex-1 flex-col overflow-auto" id="main">
-        <div className="border-b border-slate-800/80 bg-slate-950/40 px-4 py-3 sm:px-8">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="flex items-center gap-2 text-xs text-slate-400">
-              User ID
+        <div className="border-b border-[var(--border-soft)] bg-[var(--surface)]/80 px-4 py-4 backdrop-blur-sm sm:px-10">
+          <div className="mx-auto flex max-w-3xl flex-col gap-4 lg:max-w-4xl">
+            <label className="flex flex-col gap-2 text-base font-medium text-[var(--text-secondary)] sm:flex-row sm:items-center sm:gap-4">
+              <span className="min-w-[7rem]">Your account ID</span>
               <input
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-emerald-500/50"
+                className="input-calm flex-1 max-w-md"
                 aria-describedby="user-help"
+                autoComplete="username"
               />
             </label>
             <p id="user-help" className="sr-only">
               MongoDB user_id for energy_logs and user_stats
             </p>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden />
-              Refresh
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading}
+                className="btn-calm inline-flex min-h-[48px] items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-5 w-5 shrink-0 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Refresh data
+              </button>
+              {loading ? (
+                <span className="text-base text-[var(--text-muted)]">
+                  Updating…
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8">
-          <DashboardHeader
-            active={snap?.status.active ?? false}
-            lastPollMinutesAgo={snap?.status.lastPollMinutesAgo ?? null}
-            lastPolledLabel={snap?.status.lastPolledLabel ?? "No polls yet"}
-          />
-
-          {err && (
-            <div
-              className="mb-6 rounded-lg border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm text-amber-100"
-              role="alert"
-            >
-              {err}
-            </div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 space-y-4"
-          >
-            <ImpactCounters
-              dollars={snap?.stats.total_dollars_saved ?? 0}
-              carbonKg={snap?.stats.total_carbon_saved_kg ?? 0}
+        <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-10 lg:max-w-4xl">
+          <div id="overview" className="scroll-mt-24">
+            <DashboardHeader
+              active={snap?.status.active ?? false}
+              lastPollMinutesAgo={snap?.status.lastPollMinutesAgo ?? null}
+              lastPolledLabel={snap?.status.lastPolledLabel ?? "No polls yet"}
             />
-            {loading ? (
-              <div className="h-24 animate-pulse rounded-xl bg-slate-800/50" />
-            ) : (
-              <PriceCard
-                priceCents={price}
-                avg24h={mean24}
-                pulseAmber={snap?.pricePulseAmber ?? false}
-                zScore={snap?.priceZScore ?? null}
-              />
-            )}
-            <GoldenWindowBanner windows={snap?.goldenWindows ?? []} />
-          </motion.div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <motion.section
-              id="dial"
-              className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20 backdrop-blur-sm"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-            >
-              {!snap ? (
-                loading ? (
-                  <SkeletonChart />
-                ) : (
-                  <p className="text-sm text-slate-500">
-                    No efficiency data yet. Check the alert above or your
-                    Mongo user id.
-                  </p>
-                )
-              ) : (
-                <EfficiencyDial snapshot={snap} />
-              )}
-            </motion.section>
+            {err ? (
+              <div
+                className="mb-8 rounded-[var(--radius-card)] border border-[var(--warm-alert)]/30 bg-[var(--warm-alert-bg)] px-5 py-4 text-base text-[var(--text)]"
+                role="alert"
+              >
+                {err}
+              </div>
+            ) : null}
 
-            <motion.section
-              id="grid"
-              className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20 backdrop-blur-sm"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <GridHeartbeat snapshot={snap} loading={loading} />
-            </motion.section>
+            <HeroMetrics
+              snapshot={snap}
+              priceCents={price}
+              avg24h={mean24}
+              loading={loading}
+            />
 
-            <motion.section
-              id="insights"
-              className="min-h-[280px] rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20 backdrop-blur-sm lg:col-span-2"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-            >
-              <AgentInsights
-                text={snap?.insight ?? ""}
-                ecoZScore={snap?.ecoZScore ?? null}
-                fromLlm={snap?.insightFromLlm ?? false}
-              />
-            </motion.section>
-
-            <motion.section
-              id="sim"
-              className="lg:col-span-2"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Simulator />
-            </motion.section>
+            <div className="mt-8">
+              <GoldenWindowBanner windows={snap?.goldenWindows ?? []} />
+            </div>
           </div>
+
+          <div className="mt-12 space-y-6">
+            <ExpandableSection
+              id="impact-more"
+              title="Your impact and air quality"
+              description="Carbon savings and a fuller picture of savings — open when you want the details."
+            >
+              {snap ? (
+                <ImpactCounters
+                  dollars={snap.stats.total_dollars_saved}
+                  carbonKg={snap.stats.total_carbon_saved_kg}
+                />
+              ) : (
+                <p className="text-base text-[var(--text-muted)]">
+                  Connect your data to see impact totals.
+                </p>
+              )}
+            </ExpandableSection>
+
+            <ExpandableSection
+              id="price-detail"
+              title="Price in context"
+              description="How the current price compares with the last day of readings."
+            >
+              {loading ? (
+                <div className="h-24 animate-pulse rounded-2xl bg-[var(--surface-muted)]" />
+              ) : (
+                <PriceCard
+                  priceCents={price}
+                  avg24h={mean24}
+                  pulseAmber={snap?.pricePulseAmber ?? false}
+                  zScore={snap?.priceZScore ?? null}
+                />
+              )}
+            </ExpandableSection>
+          </div>
+
+          <section
+            id="dial"
+            className="scroll-mt-24 mt-14 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
+          >
+            {!snap ? (
+              loading ? (
+                <SkeletonChart />
+              ) : (
+                <p className="text-base text-[var(--text-muted)]">
+                  No efficiency data yet. Check the message above or your
+                  account ID.
+                </p>
+              )
+            ) : (
+              <EfficiencyDial snapshot={snap} />
+            )}
+          </section>
+
+          <section
+            id="grid"
+            className="scroll-mt-24 mt-10 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
+          >
+            <GridHeartbeat snapshot={snap} loading={loading} />
+          </section>
+
+          <section
+            id="insights"
+            className="scroll-mt-24 mt-10 min-h-[240px] rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
+          >
+            <AgentInsights
+              text={snap?.insight ?? ""}
+              ecoZScore={snap?.ecoZScore ?? null}
+              fromLlm={snap?.insightFromLlm ?? false}
+            />
+          </section>
+
+          <section id="plan" className="scroll-mt-24 mt-10">
+            <Simulator />
+          </section>
+
+          <section
+            id="records"
+            className="scroll-mt-24 mt-10 space-y-10 pb-16"
+          >
+            <BillUploadPanel />
+            <ManualBillSteps />
+          </section>
         </div>
       </main>
     </div>
