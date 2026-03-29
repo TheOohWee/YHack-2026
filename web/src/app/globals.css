@@ -122,3 +122,73 @@ body {
     box-shadow: 0 0 0 3px rgba(61, 107, 79, 0.15);
   }
 }
+
+/* Info modal — reusable help system */
+.info-modal-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+.info-modal-trigger:hover {
+  color: var(--text-secondary);
+  background: var(--border-soft);
+}
+
+/* Dark overlay — its own layer, no children */
+.info-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(42, 51, 44, 0.4);
+  backdrop-filter: blur(4px);
+  animation: modal-fade-in 0.2s ease forwards;
+}
+
+/* Centering wrapper for the modal — sits above the overlay */
+.info-modal-positioner {
+  position: fixed;
+  inset: 0;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  pointer-events: none;
+}
+
+/* The actual modal panel */
+.info-modal-window {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 26rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  box-shadow: 0 20px 60px rgba(42, 51, 44, 0.18), 0 4px 16px rgba(42, 51, 44, 0.1);
+  animation: modal-scale-in 0.2s ease forwards;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-scale-in {
+  from { opacity: 0; transform: scale(0.95) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

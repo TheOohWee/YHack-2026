@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type ExpandableSectionProps = {
   id: string;
   title: string;
@@ -15,11 +17,14 @@ export function ExpandableSection({
   children,
   defaultOpen = false,
 }: ExpandableSectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
   return (
     <details
       id={id}
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
       className="group rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow open:shadow-[var(--shadow-card-hover)]"
-      defaultOpen={defaultOpen}
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-left [&::-webkit-details-marker]:hidden">
         <div>

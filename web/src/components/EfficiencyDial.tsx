@@ -7,7 +7,6 @@ import {
   RadialBarChart,
   ResponsiveContainer,
 } from "recharts";
-
 const FILL = "#5a8f6a";
 const TRACK = "#e5e1d9";
 
@@ -17,7 +16,7 @@ export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
   const data = [{ name: "efficiency", value: pct, fill: FILL }];
 
   return (
-    <div className="relative flex h-full min-h-[260px] flex-col rounded-xl">
+    <div className="flex h-full min-h-[260px] flex-col rounded-xl">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-[var(--text)]">
           How clean was your timing?

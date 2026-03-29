@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { InfoModal } from "./InfoModal";
 
 /** Simple what-if: shift fraction of monthly kWh from high-priced to lower-priced periods. */
 export function Simulator() {
@@ -18,8 +19,14 @@ export function Simulator() {
   }, [hours, monthlyKwh, avgHigh, avgLow]);
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)]">
-      <h2 className="text-lg font-semibold text-[var(--text)]">
+    <div className="relative rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)]">
+      <div className="absolute top-5 right-5">
+        <InfoModal title="Usage shift simulator">
+          <p>A planning tool that estimates how much you could save by shifting flexible energy use (laundry, dishwasher, EV charging) to cheaper, cleaner hours.</p>
+          <p className="mt-3">The numbers are illustrative based on typical rates — not a guarantee on your actual bill.</p>
+        </InfoModal>
+      </div>
+      <h2 className="text-lg font-semibold text-[var(--text)] pr-10">
         What if you shifted a little usage?
       </h2>
       <p className="mt-2 max-w-2xl text-base text-[var(--text-muted)]">

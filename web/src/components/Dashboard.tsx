@@ -13,9 +13,9 @@ import { GoldenWindowBanner } from "./GoldenWindowBanner";
 import { GridHeartbeat } from "./GridHeartbeat";
 import { HeroMetrics } from "./HeroMetrics";
 import { ImpactCounters } from "./ImpactCounters";
+import { InfoModal } from "./InfoModal";
 import { ManualBillSteps } from "./ManualBillSteps";
 import { PriceCard } from "./PriceCard";
-import { Sidebar } from "./Sidebar";
 import { Simulator } from "./Simulator";
 import { SkeletonChart } from "./SkeletonChart";
 
@@ -82,11 +82,9 @@ export function Dashboard({
       : null;
 
   return (
-    <div className="flex min-h-screen flex-col sm:flex-row">
-      <Sidebar />
-      <main className="flex flex-1 flex-col overflow-auto" id="main">
-        <div className="border-b border-[var(--border-soft)] bg-[var(--surface)]/80 px-4 py-4 backdrop-blur-sm sm:px-10">
-          <div className="mx-auto flex max-w-3xl flex-col gap-4 lg:max-w-4xl">
+    <div className="min-h-screen">
+      <div className="border-b border-[var(--border-soft)] bg-[var(--surface)]/80 px-4 py-4 backdrop-blur-sm sm:px-10">
+          <div className="mx-auto flex max-w-4xl flex-col gap-4">
             <label className="flex flex-col gap-2 text-base font-medium text-[var(--text-secondary)] sm:flex-row sm:items-center sm:gap-4">
               <span className="min-w-[7rem]">Your account ID</span>
               <input
@@ -122,7 +120,7 @@ export function Dashboard({
           </div>
         </div>
 
-        <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-10 lg:max-w-4xl">
+        <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10" id="main">
           <div id="overview" className="scroll-mt-24">
             <DashboardHeader
               active={snap?.status.active ?? false}
@@ -189,8 +187,14 @@ export function Dashboard({
 
           <section
             id="dial"
-            className="scroll-mt-24 mt-14 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
+            className="relative scroll-mt-24 mt-14 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
+            <div className="absolute top-5 right-5 z-10">
+              <InfoModal title="Efficiency dial">
+                <p>This dial blends renewable energy share and price into a single eco-efficiency score from 0–100%.</p>
+                <p className="mt-3">The detail index below the percentage is a raw composite score. The z-score compares your recent performance to your own history.</p>
+              </InfoModal>
+            </div>
             {!snap ? (
               loading ? (
                 <SkeletonChart />
@@ -207,15 +211,27 @@ export function Dashboard({
 
           <section
             id="grid"
-            className="scroll-mt-24 mt-10 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
+            className="relative scroll-mt-24 mt-10 rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
+            <div className="absolute top-5 right-5 z-10">
+              <InfoModal title="Grid heartbeat">
+                <p>The top chart tracks wind and solar as a percentage of total generation throughout the day — higher means greener power.</p>
+                <p className="mt-3">The stacked area chart below breaks down the full fuel mix: coal, gas, nuclear, imports, battery, wind, and solar. Tap the chart to see exact percentages at any point in time.</p>
+              </InfoModal>
+            </div>
             <GridHeartbeat snapshot={snap} loading={loading} />
           </section>
 
           <section
             id="insights"
-            className="scroll-mt-24 mt-10 min-h-[240px] rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
+            className="relative scroll-mt-24 mt-10 min-h-[240px] rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
+            <div className="absolute top-5 right-5 z-10">
+              <InfoModal title="Weekly guidance">
+                <p>Personalized tips generated from your usage patterns and current grid conditions. When marked &ldquo;Personalized note,&rdquo; the insight comes from an AI analysis of your specific data.</p>
+                <p className="mt-3">&ldquo;General tips&rdquo; are shown when there isn&apos;t enough data for a personalized recommendation yet.</p>
+              </InfoModal>
+            </div>
             <AgentInsights
               text={snap?.insight ?? ""}
               ecoZScore={snap?.ecoZScore ?? null}
@@ -234,8 +250,7 @@ export function Dashboard({
             <BillUploadPanel />
             <ManualBillSteps />
           </section>
-        </div>
-      </main>
+        </main>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import type { EnergySnapshot } from "@/types/energy";
+import { InfoModal } from "./InfoModal";
 
 type HeroMetricsProps = {
   snapshot: EnergySnapshot | null;
@@ -27,11 +28,16 @@ export function HeroMetrics({
         Today&apos;s snapshot
       </h2>
       <p className="max-w-2xl text-base text-[var(--text-muted)]">
-        Three numbers that sum up how the grid looks for you right now. Tap
-        sections below when you want more detail.
+        Three numbers that sum up how the grid looks for you right now.
       </p>
       <div className="flex flex-col gap-4 pt-2 lg:flex-row lg:gap-6">
-        <article className="flex min-h-[140px] flex-1 flex-col justify-center rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] px-6 py-6 shadow-[var(--shadow-card)]">
+        <article className="relative flex min-h-[140px] flex-1 flex-col justify-center rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] px-6 py-6 shadow-[var(--shadow-card)]">
+          <div className="absolute top-5 right-5">
+            <InfoModal title="Current price">
+              <p>The wholesale electricity price in your region right now, shown in cents per kilowatt-hour.</p>
+              <p className="mt-3">The 24-hour average below it gives you a sense of whether the current price is higher or lower than usual.</p>
+            </InfoModal>
+          </div>
           <h3 className="text-base font-medium text-[var(--text-secondary)]">
             Current price
           </h3>
@@ -59,7 +65,13 @@ export function HeroMetrics({
           </p>
         </article>
 
-        <article className="flex min-h-[140px] flex-1 flex-col justify-center rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] px-6 py-6 shadow-[var(--shadow-card)]">
+        <article className="relative flex min-h-[140px] flex-1 flex-col justify-center rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] px-6 py-6 shadow-[var(--shadow-card)]">
+          <div className="absolute top-5 right-5">
+            <InfoModal title="Clean score">
+              <p>A blended percentage combining how much of the grid is powered by renewables and how favorable the price is right now.</p>
+              <p className="mt-3">Higher is better — it means cleaner, cheaper power is available.</p>
+            </InfoModal>
+          </div>
           <h3 className="text-base font-medium text-[var(--text-secondary)]">
             Clean score
           </h3>
@@ -77,7 +89,12 @@ export function HeroMetrics({
           </p>
         </article>
 
-        <article className="flex min-h-[140px] flex-1 flex-col justify-center rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] px-6 py-6 shadow-[var(--shadow-card)]">
+        <article className="relative flex min-h-[140px] flex-1 flex-col justify-center rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] px-6 py-6 shadow-[var(--shadow-card)]">
+          <div className="absolute top-5 right-5">
+            <InfoModal title="Estimated savings">
+              <p>Cumulative dollar savings tracked over time based on your usage patterns and when you consumed power relative to price fluctuations.</p>
+            </InfoModal>
+          </div>
           <h3 className="text-base font-medium text-[var(--text-secondary)]">
             Estimated savings
           </h3>
