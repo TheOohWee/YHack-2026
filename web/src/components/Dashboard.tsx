@@ -34,24 +34,43 @@ export function Dashboard({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(initialError);
   const userIdRef = useRef(userId);
-  const skipUserIdLoadOnce = useRef(true);
+  /** Ignore slow server-action responses if the account ID changed mid-flight. */
+  const loadEpochRef = useRef(0);
+  /** Skip debounced load on first mount — RSC already provided initialSnapshot. */
+  const skipDebouncedLoadOnce = useRef(true);
+  /** Last userId we successfully loaded; used to clear stale snapshot when switching accounts. */
+  const lastLoadedUserIdRef = useRef(initialUserId);
 
   const load = useCallback(async () => {
+    const epoch = ++loadEpochRef.current;
+    const uidAtStart = userIdRef.current;
     setLoading(true);
     setErr(null);
+    if (uidAtStart !== lastLoadedUserIdRef.current) {
+      setSnap(null);
+    }
     try {
-      const res = await loadEnergySnapshot(userIdRef.current);
+      const res = await loadEnergySnapshot(uidAtStart);
+      if (epoch !== loadEpochRef.current || userIdRef.current !== uidAtStart) {
+        return;
+      }
       if (!res.ok) {
         setErr(res.error);
-        setSnap(null);
+        // Keep last good snapshot so the UI does not flash empty on transient errors.
       } else {
+        setErr(null);
+        lastLoadedUserIdRef.current = uidAtStart;
         setSnap(res.snapshot);
       }
     } catch (e) {
+      if (epoch !== loadEpochRef.current || userIdRef.current !== uidAtStart) {
+        return;
+      }
       setErr(e instanceof Error ? e.message : "Unknown error");
-      setSnap(null);
     } finally {
-      setLoading(false);
+      if (epoch === loadEpochRef.current && userIdRef.current === uidAtStart) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -64,12 +83,16 @@ export function Dashboard({
     return () => clearInterval(t);
   }, [load]);
 
+  // Debounce: typing in the account ID was firing load() every keystroke (races + flicker).
   useEffect(() => {
-    if (skipUserIdLoadOnce.current) {
-      skipUserIdLoadOnce.current = false;
+    if (skipDebouncedLoadOnce.current) {
+      skipDebouncedLoadOnce.current = false;
       return;
     }
-    void load();
+    const t = window.setTimeout(() => {
+      void load();
+    }, 450);
+    return () => window.clearTimeout(t);
   }, [userId, load]);
 
   const price = snap?.latest?.price_cents ?? null;
@@ -171,7 +194,7 @@ export function Dashboard({
               title="Price in context"
               description="How the current price compares with the last day of readings."
             >
-              {loading ? (
+              {loading && !snap ? (
                 <div className="h-24 animate-pulse rounded-2xl bg-[var(--surface-muted)]" />
               ) : (
                 <PriceCard
