@@ -5,6 +5,7 @@ import type { EnergySnapshot } from "@/types/energy";
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentInsights } from "./AgentInsights";
+import { AskWattsUp } from "./AskWattsUp";
 import { BillUploadPanel } from "./BillUploadPanel";
 import { DashboardHeader } from "./DashboardHeader";
 import { EfficiencyDial } from "./EfficiencyDial";
@@ -14,7 +15,6 @@ import { GridHeartbeat } from "./GridHeartbeat";
 import { HeroMetrics } from "./HeroMetrics";
 import { ImpactCounters } from "./ImpactCounters";
 import { InfoModal } from "./InfoModal";
-import { ManualBillSteps } from "./ManualBillSteps";
 import { PriceCard } from "./PriceCard";
 import { Simulator } from "./Simulator";
 import { SkeletonChart } from "./SkeletonChart";
@@ -247,10 +247,11 @@ export function Dashboard({
             id="records"
             className="scroll-mt-24 mt-10 space-y-10 pb-16"
           >
-            <BillUploadPanel />
-            <ManualBillSteps />
+            <BillUploadPanel userId={userId} />
           </section>
         </main>
+
+        <AskWattsUp userId={userId} />
     </div>
   );
 }

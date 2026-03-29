@@ -1,16 +1,106 @@
 "use client";
 
+import { Loader2, Upload, Zap, FileText } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
-export function BillUploadPanel() {
+type Props = { userId: string };
+
+export function BillUploadPanel({ userId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const acceptFiles = useCallback((files: FileList | null) => {
-    const f = files?.[0];
-    if (f) setFileName(f.name);
+  const extractTextFromFile = useCallback(async (file: File): Promise<string> => {
+    if (file.type === "text/plain") {
+      return file.text();
+    }
+
+    if (file.type === "application/pdf") {
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const chunks: string[] = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: unknown) => (item as { str?: string }).str ?? "")
+          .join(" ");
+        chunks.push(pageText);
+      }
+
+      const text = chunks.join("\n").trim();
+      if (text.length > 50) return text;
+    }
+
+    return "";
   }, []);
+
+  const analyzeFile = useCallback(
+    async (file: File) => {
+      setFileName(file.name);
+      setAnalysis(null);
+      setError(null);
+      setLoading(true);
+
+      try {
+        const billText = await extractTextFromFile(file);
+
+        // If extraction didn't get enough text, show paste fallback
+        if (billText.trim().length < 50) {
+          setLoading(false);
+          setError(
+            "Could not extract enough text from this file. Please paste your bill text below."
+          );
+          return;
+        }
+
+        const res = await fetch("/api/bill-analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ billText, userId }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Request failed" }));
+          setError(err.error || "Analysis failed");
+          return;
+        }
+
+        // Stream the response token by token
+        const reader = res.body?.getReader();
+        if (!reader) { setError("No response stream"); return; }
+        const decoder = new TextDecoder();
+        let text = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+          if (text.trim()) setLoading(false);
+          setAnalysis(text);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [extractTextFromFile, userId]
+  );
+
+  const acceptFiles = useCallback(
+    (files: FileList | null) => {
+      const f = files?.[0];
+      if (f) void analyzeFile(f);
+    },
+    [analyzeFile]
+  );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -18,72 +108,179 @@ export function BillUploadPanel() {
       setIsDragging(false);
       acceptFiles(e.dataTransfer.files);
     },
-    [acceptFiles],
+    [acceptFiles]
   );
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const onDragLeave = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  // Paste text fallback
+  const [pasteText, setPasteText] = useState("");
+  const analyzePastedText = useCallback(async () => {
+    if (!pasteText.trim()) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/bill-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billText: pasteText, userId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Request failed" }));
+        setError(err.error || "Analysis failed");
+        return;
+      }
+      const reader = res.body?.getReader();
+      if (!reader) { setError("No response stream"); return; }
+      const decoder = new TextDecoder();
+      let text = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        if (text.trim()) setLoading(false);
+        setAnalysis(text);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }, [pasteText, userId]);
 
   return (
     <div className="rounded-[var(--radius-card)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)]">
-      <h2 className="text-lg font-semibold text-[var(--text)]">
-        Add a bill file
-      </h2>
-      <p className="mt-2 max-w-xl text-base text-[var(--text-muted)]">
-        Drop a PDF or photo of your statement. Nothing leaves your browser until
-        you connect an account later — this step simply prepares your file.
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-wash)]">
+          <FileText className="h-5 w-5 text-[var(--accent)]" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            Bill Analysis
+          </h2>
+          <p className="text-sm text-[var(--text-muted)]">
+            Powered by K2 Think V2
+          </p>
+        </div>
+      </div>
+      <p className="mt-3 max-w-xl text-base text-[var(--text-muted)]">
+        Upload your electricity bill and K2 will reason through your rates,
+        usage patterns, and savings opportunities with real math.
       </p>
 
-      <div
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
-        onClick={() => inputRef.current?.click()}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        className={`mt-6 flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
-          isDragging
-            ? "border-[var(--accent)] bg-[var(--accent-wash)]"
-            : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--accent-soft)] hover:bg-[var(--accent-wash)]/60"
-        }`}
-        aria-label="Upload energy bill file. Click or drop a file."
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,image/*"
-          className="sr-only"
-          onChange={(e) => acceptFiles(e.target.files)}
-        />
-        <span className="rounded-full bg-[var(--accent-wash)] px-4 py-2 text-base font-medium text-[var(--accent)]">
-          Choose file or drag here
-        </span>
-        <span className="mt-3 text-base text-[var(--text-muted)]">
-          PDF, JPG, or PNG — up to what your browser allows
-        </span>
-      </div>
+      {!analysis && !loading && (
+        <>
+          <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                inputRef.current?.click();
+              }
+            }}
+            onClick={() => inputRef.current?.click()}
+            onDrop={onDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            className={`mt-5 flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors ${
+              isDragging
+                ? "border-[var(--accent)] bg-[var(--accent-wash)]"
+                : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--accent-soft)] hover:bg-[var(--accent-wash)]/60"
+            }`}
+            aria-label="Upload energy bill"
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,.txt,text/plain"
+              className="sr-only"
+              onChange={(e) => acceptFiles(e.target.files)}
+            />
+            <Upload className="h-6 w-6 text-[var(--accent)] mb-2" />
+            <span className="text-base font-medium text-[var(--accent)]">
+              Drop your bill PDF or click to upload
+            </span>
+            <span className="mt-1 text-sm text-[var(--text-muted)]">
+              PDF or text file
+            </span>
+          </div>
 
-      {fileName ? (
-        <div
-          className="mt-5 rounded-xl border border-[var(--accent-soft)] bg-[var(--accent-wash)] px-4 py-3 text-base text-[var(--text)]"
-          role="status"
-        >
-          <span className="font-medium text-[var(--accent)]">Added: </span>
-          {fileName}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-[var(--border-soft)]" />
+            <span className="text-sm text-[var(--text-muted)]">or paste bill text</span>
+            <div className="h-px flex-1 bg-[var(--border-soft)]" />
+          </div>
+
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder="Paste the text from your electricity bill here..."
+            className="mt-4 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/15 min-h-[100px] resize-y"
+          />
+          {pasteText.trim() && (
+            <button
+              type="button"
+              className="btn-calm mt-3 gap-2"
+              onClick={() => void analyzePastedText()}
+            >
+              <Zap className="h-4 w-4" />
+              Analyze with K2
+            </button>
+          )}
+        </>
+      )}
+
+      {loading && (
+        <div className="mt-6 flex flex-col items-center gap-3 py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
+          <p className="text-base font-medium text-[var(--text)]">
+            K2 Think V2 is analyzing your bill...
+          </p>
+          <p className="text-sm text-[var(--text-muted)]">
+            Reasoning through rates, usage, and savings
+          </p>
         </div>
-      ) : null}
+      )}
+
+      {error && !loading && (
+        <div className="mt-4 rounded-xl border border-[var(--warm-alert)]/30 bg-[var(--warm-alert-bg)] px-4 py-3 text-sm text-[var(--text)]">
+          {error}
+        </div>
+      )}
+
+      {analysis && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="h-4 w-4 text-[var(--accent)]" />
+            <span className="text-sm font-semibold text-[var(--accent)]">
+              K2 Think V2 Analysis
+            </span>
+            {fileName && (
+              <span className="text-sm text-[var(--text-muted)]">
+                — {fileName}
+              </span>
+            )}
+          </div>
+          <div className="bill-analysis-content rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)] p-5 text-sm leading-relaxed text-[var(--text)] whitespace-pre-wrap">
+            {analysis}
+          </div>
+          <button
+            type="button"
+            className="btn-calm-secondary mt-4"
+            onClick={() => {
+              setAnalysis(null);
+              setFileName(null);
+              setPasteText("");
+              setError(null);
+            }}
+          >
+            Analyze another bill
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
