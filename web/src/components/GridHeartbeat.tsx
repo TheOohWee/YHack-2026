@@ -1,5 +1,6 @@
 "use client";
 
+import { decimateLogsByTimeGap } from "@/lib/quant-compute";
 import type { EnergySnapshot } from "@/types/energy";
 import {
   Area,
@@ -35,7 +36,8 @@ export function GridHeartbeat({
     );
   }
 
-  const data = snapshot.logs.map((l) => ({
+  const chartLogs = decimateLogsByTimeGap(snapshot.logs);
+  const data = chartLogs.map((l) => ({
     ...l,
     clean_share: Math.min(100, l.wind + l.solar),
   }));

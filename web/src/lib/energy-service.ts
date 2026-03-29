@@ -147,18 +147,28 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
   const db = await getDb();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [rows, statsDoc, lastForStatus] = await Promise.all([
+  const [rows, lastForStatus] = await Promise.all([
     db
       .collection("energy_logs")
       .find({ user_id: userId, timestamp: { $gte: since } })
       .sort({ timestamp: 1 })
       .limit(2000)
       .toArray(),
-    db.collection("user_stats").findOne({ user_id: userId }),
     db
       .collection("energy_logs")
       .findOne({ user_id: userId }, { sort: { timestamp: -1 } }),
   ]);
+
+  const latestDoc = lastForStatus as Record<string, unknown> | null;
+  const hasDenorm =
+    latestDoc != null &&
+    (typeof latestDoc.total_dollars_saved === "number" ||
+      typeof latestDoc.total_carbon_saved_kg === "number" ||
+      typeof latestDoc.total_carbon_saved === "number");
+
+  const statsDoc = hasDenorm
+    ? null
+    : await db.collection("user_stats").findOne({ user_id: userId });
 
   const logs: EnergyLogPoint[] = [];
   for (const r of rows) {
@@ -166,7 +176,6 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
     if (p) logs.push(p);
   }
 
-  const latestDoc = lastForStatus as Record<string, unknown> | null;
   const latest = latestDoc ? docToPoint(latestDoc) : null;
 
   const lastTs = latestDoc?.timestamp
@@ -202,9 +211,15 @@ export async function getEnergySnapshot(userId: string): Promise<EnergySnapshot>
 
   const stats = {
     total_carbon_saved_kg: Number(
-      statsDoc?.total_carbon_saved ?? statsDoc?.total_carbon_saved_kg ?? 0,
+      latestDoc?.total_carbon_saved_kg ??
+        latestDoc?.total_carbon_saved ??
+        statsDoc?.total_carbon_saved ??
+        statsDoc?.total_carbon_saved_kg ??
+        0,
     ),
-    total_dollars_saved: Number(statsDoc?.total_dollars_saved ?? 0),
+    total_dollars_saved: Number(
+      latestDoc?.total_dollars_saved ?? statsDoc?.total_dollars_saved ?? 0,
+    ),
   };
 
   return {

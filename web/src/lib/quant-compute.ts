@@ -1,5 +1,33 @@
 import type { EnergyLogPoint } from "@/types/energy";
 
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * For charts: keep the most recent point, then walk backward and only keep a point
+ * if it is at least `minGapMs` older than the last kept point (reduces stacked/overdense polls).
+ */
+export function decimateLogsByTimeGap(
+  logs: EnergyLogPoint[],
+  minGapMs: number = HOUR_MS,
+): EnergyLogPoint[] {
+  if (logs.length <= 1) return [...logs];
+  const byDesc = [...logs].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+  const kept: EnergyLogPoint[] = [byDesc[0]!];
+  for (let i = 1; i < byDesc.length; i++) {
+    const p = byDesc[i]!;
+    const last = kept[kept.length - 1]!;
+    const tLast = new Date(last.timestamp).getTime();
+    const tP = new Date(p.timestamp).getTime();
+    if (!Number.isFinite(tLast) || !Number.isFinite(tP)) continue;
+    if (tLast - tP >= minGapMs) {
+      kept.push(p);
+    }
+  }
+  return kept.reverse();
+}
+
 function meanStd(values: number[]): { mean: number; std: number } | null {
   if (values.length < 2) return null;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;

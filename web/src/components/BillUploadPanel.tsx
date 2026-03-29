@@ -13,35 +13,6 @@ export function BillUploadPanel({ userId }: Props) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const extractTextFromFile = useCallback(async (file: File): Promise<string> => {
-    if (file.type === "text/plain") {
-      return file.text();
-    }
-
-    if (file.type === "application/pdf") {
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-
-      const buffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-      const chunks: string[] = [];
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .map((item: unknown) => (item as { str?: string }).str ?? "")
-          .join(" ");
-        chunks.push(pageText);
-      }
-
-      const text = chunks.join("\n").trim();
-      if (text.length > 50) return text;
-    }
-
-    return "";
-  }, []);
-
   const analyzeFile = useCallback(
     async (file: File) => {
       setFileName(file.name);
@@ -50,22 +21,26 @@ export function BillUploadPanel({ userId }: Props) {
       setLoading(true);
 
       try {
-        const billText = await extractTextFromFile(file);
+        const isPdf =
+          file.type === "application/pdf" ||
+          file.name.toLowerCase().endsWith(".pdf");
+        const isTxt = file.type === "text/plain" || file.name.toLowerCase().endsWith(".txt");
 
-        // If extraction didn't get enough text, show paste fallback
-        if (billText.trim().length < 50) {
+        let res: Response;
+
+        if (isPdf || isTxt) {
+          const form = new FormData();
+          form.append("file", file);
+          form.append("userId", userId);
+          res = await fetch("/api/bill-analyze", {
+            method: "POST",
+            body: form,
+          });
+        } else {
           setLoading(false);
-          setError(
-            "Could not extract enough text from this file. Please paste your bill text below."
-          );
+          setError("Please upload a PDF or .txt bill, or paste text below.");
           return;
         }
-
-        const res = await fetch("/api/bill-analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ billText, userId }),
-        });
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: "Request failed" }));
@@ -73,9 +48,11 @@ export function BillUploadPanel({ userId }: Props) {
           return;
         }
 
-        // Stream the response token by token
         const reader = res.body?.getReader();
-        if (!reader) { setError("No response stream"); return; }
+        if (!reader) {
+          setError("No response stream");
+          return;
+        }
         const decoder = new TextDecoder();
         let text = "";
         while (true) {
@@ -91,7 +68,7 @@ export function BillUploadPanel({ userId }: Props) {
         setLoading(false);
       }
     },
-    [extractTextFromFile, userId]
+    [userId]
   );
 
   const acceptFiles = useCallback(

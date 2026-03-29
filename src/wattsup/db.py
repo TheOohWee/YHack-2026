@@ -17,6 +17,26 @@ def get_collection(settings: Settings) -> Collection:
     return db["energy_logs"]
 
 
+def fetch_user_stats_totals(settings: Settings, user_id: str) -> dict[str, float]:
+    """Snapshot user_stats for denormalizing onto each new energy_logs row."""
+    client = MongoClient(settings.mongodb_uri)
+    row = client[settings.mongodb_db]["user_stats"].find_one({"user_id": user_id})
+    if not row:
+        return {}
+    out: dict[str, float] = {}
+    v = row.get("total_dollars_saved")
+    if isinstance(v, (int, float)):
+        out["total_dollars_saved"] = float(v)
+    c = row.get("total_carbon_saved_kg")
+    if isinstance(c, (int, float)):
+        out["total_carbon_saved_kg"] = float(c)
+    else:
+        c2 = row.get("total_carbon_saved")
+        if isinstance(c2, (int, float)):
+            out["total_carbon_saved_kg"] = float(c2)
+    return out
+
+
 def get_alert_state_collection(settings: Settings) -> Collection:
     client = MongoClient(settings.mongodb_uri)
     db = client[settings.mongodb_db]

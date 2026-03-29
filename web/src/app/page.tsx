@@ -2,6 +2,7 @@ import "@/lib/load-env";
 
 import { Dashboard } from "@/components/Dashboard";
 import { getEnergySnapshot } from "@/lib/energy-service";
+import { flightSafeSnapshot } from "@/lib/snapshot-serialize";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default async function Home({
       "MONGODB_URI is not set. Put it in wattsup/.env (parent folder) or web/.env.local and restart `npm run dev`.";
   } else {
     try {
-      initialSnapshot = await getEnergySnapshot(userId);
+      initialSnapshot = flightSafeSnapshot(await getEnergySnapshot(userId));
     } catch (e) {
       initialError =
         e instanceof Error ? e.message : "Could not load energy snapshot.";

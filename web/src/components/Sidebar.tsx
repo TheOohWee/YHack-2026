@@ -6,7 +6,6 @@ const nav = [
   { href: "#overview", label: "Today" },
   { href: "#grid", label: "Grid rhythm" },
   { href: "#insights", label: "Guidance" },
-  { href: "#plan", label: "Plan ahead" },
   { href: "#records", label: "Bills & files" },
 ] as const;
 

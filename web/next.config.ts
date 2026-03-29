@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: webDir,
   },
+  serverExternalPackages: ["pdf-parse"],
 };
 
 export default nextConfig;

@@ -10,6 +10,15 @@ type HeroMetricsProps = {
   loading: boolean;
 };
 
+/** Uses eco-efficiency z-score already stored on the latest log. */
+function cleanScoreContextLabel(z: number | null | undefined): string | null {
+  if (z == null || !Number.isFinite(z)) return null;
+  if (z >= 0.75) return "Better than your last 3 days";
+  if (z <= -2) return "Worst hour this week";
+  if (z <= -0.5) return "Below your recent average";
+  return "In line with your recent average";
+}
+
 export function HeroMetrics({
   snapshot,
   priceCents,
@@ -18,6 +27,7 @@ export function HeroMetrics({
 }: HeroMetricsProps) {
   const pct = snapshot ? Math.round(snapshot.dialPercent) : null;
   const saved = snapshot?.stats.total_dollars_saved ?? 0;
+  const cleanLabel = cleanScoreContextLabel(snapshot?.ecoZScore);
 
   return (
     <section
@@ -85,7 +95,7 @@ export function HeroMetrics({
             )}
           </p>
           <p className="mt-2 text-base text-[var(--text-muted)]">
-            Renewables and price blended into one friendly index.
+            {cleanLabel ?? "Renewables and price blended into one friendly index."}
           </p>
         </article>
 

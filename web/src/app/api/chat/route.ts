@@ -4,12 +4,30 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 
-const K2_ENDPOINT =
-  process.env.K2_ENDPOINT || "https://api.k2think.ai/v1/chat/completions";
-const K2_MODEL = process.env.K2_MODEL || "MBZUAI-IFM/K2-Think-v2";
-const K2_API_KEY = process.env.K2_API_KEY || "";
+/** Chat uses the fast OpenAI-compatible gateway (K2V2 / Lava); bill analysis uses K2 Think v2 separately. */
+const CHAT_BASE_RAW =
+  process.env.K2V2_BASE_URL ||
+  process.env.LAVA_BASE_URL ||
+  process.env.K2_CHAT_BASE_URL ||
+  "";
+const CHAT_BASE = CHAT_BASE_RAW.replace(/\/$/, "");
+const CHAT_URL = CHAT_BASE
+  ? `${CHAT_BASE}/v1/chat/completions`
+  : process.env.K2_ENDPOINT ||
+    "https://api.k2think.ai/v1/chat/completions";
+const CHAT_MODEL =
+  process.env.GEMINI_FLASH_MODEL ||
+  process.env.K2_CHAT_MODEL ||
+  (CHAT_BASE
+    ? "gpt-4o-mini"
+    : process.env.K2_MODEL || "MBZUAI-IFM/K2-Think-v2");
+const CHAT_API_KEY =
+  process.env.K2V2_API_KEY ||
+  process.env.LAVA_KEY ||
+  process.env.K2_API_KEY ||
+  "";
 
-const SYSTEM_PROMPT = `You are WattsUp AI, an energy advisor powered by K2 Think V2. You help Illinois households save money and reduce carbon emissions by reasoning about real-time electricity grid data.
+const SYSTEM_PROMPT = `You are WattsUp AI, a quick energy advisor. You help Illinois households save money and cut carbon using real-time electricity grid data injected below.
 
 You have access to LIVE grid data injected below. Use it to give specific, quantitative advice. Show your reasoning with actual numbers — don't just give generic tips.
 
@@ -64,9 +82,25 @@ async function getGridContext(userId: string): Promise<string> {
     const priceMax = recentPrices.length ? Math.max(...recentPrices) : null;
 
     // Stats
-    const stats = await db
-      .collection("user_stats")
-      .findOne({ user_id: userId });
+    const denormDollars = doc.total_dollars_saved;
+    const denormCarbon =
+      doc.total_carbon_saved_kg ?? doc.total_carbon_saved ?? null;
+    const stats =
+      typeof denormDollars === "number" || typeof denormCarbon === "number"
+        ? {
+            total_dollars_saved: denormDollars ?? undefined,
+            total_carbon_saved_kg: denormCarbon ?? undefined,
+          }
+        : await db.collection("user_stats").findOne({ user_id: userId });
+
+    const st = stats as {
+      total_dollars_saved?: number;
+      total_carbon_saved_kg?: number;
+      total_carbon_saved?: number;
+    } | null;
+    const carbonSaved =
+      st?.total_carbon_saved_kg ?? st?.total_carbon_saved ?? 0;
+    const dollarsSaved = st?.total_dollars_saved ?? 0;
 
     return `LIVE GRID DATA (as of ${ts}):
 - Current ComEd hourly price: ${price !== null ? price.toFixed(1) + " cents/kWh" : "unavailable"}
@@ -77,18 +111,21 @@ async function getGridContext(userId: string): Promise<string> {
 - Grid demand: ${demandMw !== null ? demandMw.toFixed(0) + " MW" : "unavailable"}
 - Eco-efficiency score: ${ecoScore !== null ? ecoScore.toFixed(1) : "unavailable"}
 - Z-score (vs recent history): ${zScore !== null ? zScore.toFixed(2) : "unavailable"}
-- User total carbon saved: ${stats?.total_carbon_saved_kg?.toFixed(1) ?? "0"} kg
-- User total dollars saved: $${stats?.total_dollars_saved?.toFixed(2) ?? "0.00"}`;
-  } catch (e) {
+- User total carbon saved: ${Number(carbonSaved).toFixed(1)} kg
+- User total dollars saved: $${dollarsSaved.toFixed(2)}`;
+  } catch {
     return "Grid data fetch failed. Answer based on general knowledge.";
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!K2_API_KEY) {
+  if (!CHAT_API_KEY) {
     return NextResponse.json(
-      { error: "K2_API_KEY is not configured" },
-      { status: 503 }
+      {
+        error:
+          "Chat API key not configured (set K2V2_API_KEY or K2_API_KEY and K2V2_BASE_URL for fast chat).",
+      },
+      { status: 503 },
     );
   }
 
@@ -118,17 +155,17 @@ export async function POST(req: NextRequest) {
   ];
 
   try {
-    const res = await fetch(K2_ENDPOINT, {
+    const res = await fetch(CHAT_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${K2_API_KEY}`,
+        Authorization: `Bearer ${CHAT_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: K2_MODEL,
+        model: CHAT_MODEL,
         messages: k2Messages,
-        temperature: 0.3,
-        max_tokens: 4000,
+        temperature: 0.35,
+        max_tokens: 900,
         stream: false,
       }),
     });
@@ -150,7 +187,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       message: { role: "assistant", content },
-      model: K2_MODEL,
+      model: CHAT_MODEL,
     });
   } catch (e) {
     return NextResponse.json(

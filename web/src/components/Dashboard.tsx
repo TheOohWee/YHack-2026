@@ -16,7 +16,6 @@ import { HeroMetrics } from "./HeroMetrics";
 import { ImpactCounters } from "./ImpactCounters";
 import { InfoModal } from "./InfoModal";
 import { PriceCard } from "./PriceCard";
-import { Simulator } from "./Simulator";
 import { SkeletonChart } from "./SkeletonChart";
 
 type DashboardProps = {
@@ -61,7 +60,7 @@ export function Dashboard({
   }, [userId]);
 
   useEffect(() => {
-    const t = setInterval(() => void load(), 60_000);
+    const t = setInterval(() => void load(), 30 * 60 * 1000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -237,10 +236,6 @@ export function Dashboard({
               ecoZScore={snap?.ecoZScore ?? null}
               fromLlm={snap?.insightFromLlm ?? false}
             />
-          </section>
-
-          <section id="plan" className="scroll-mt-24 mt-10">
-            <Simulator />
           </section>
 
           <section

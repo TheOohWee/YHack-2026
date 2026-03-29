@@ -71,7 +71,7 @@ export function AskWattsUp({ userId }: { userId: string }) {
 
         const data = await res.json();
         setMessages([...newMessages, data.message]);
-      } catch (e) {
+      } catch {
         setMessages([
           ...newMessages,
           { role: "assistant", content: "Sorry, I couldn't reach the server. Please try again." },
@@ -109,7 +109,7 @@ export function AskWattsUp({ userId }: { userId: string }) {
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5" />
               <span className="font-semibold text-base">Ask WattsUp</span>
-              <span className="ask-wattsup-badge">K2 Think V2</span>
+              <span className="ask-wattsup-badge">Fast chat</span>
             </div>
             <button
               type="button"
@@ -183,7 +183,7 @@ export function AskWattsUp({ userId }: { userId: string }) {
                 <div className="ask-wattsup-bubble-assistant">
                   <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
                   <span className="text-sm text-[var(--text-muted)] ml-2">
-                    Reasoning over live grid data...
+                    Checking live grid data...
                   </span>
                 </div>
               </div>

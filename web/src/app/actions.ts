@@ -3,6 +3,7 @@
 import "@/lib/load-env";
 
 import { getEnergySnapshot } from "@/lib/energy-service";
+import { flightSafeSnapshot } from "@/lib/snapshot-serialize";
 import type { EnergySnapshot } from "@/types/energy";
 
 export type LoadEnergyResult =
@@ -25,10 +26,15 @@ async function triggerLivePollIfConfigured(userId: string): Promise<void> {
     });
     if (!res.ok) {
       const detail = await res.text();
-      throw new Error(
-        `Live poll failed (${res.status}). Is wattsup-serve running at ${base}? ${detail.slice(0, 280)}`,
+      console.warn(
+        `[WattsUp] Live poll failed (${res.status}) at ${base} — loading Mongo only. ${detail.slice(0, 120)}`,
       );
     }
+  } catch (e) {
+    console.warn(
+      "[WattsUp] Live poll skipped (is wattsup-serve running?):",
+      e instanceof Error ? e.message : e,
+    );
   } finally {
     clearTimeout(timer);
   }
@@ -46,11 +52,21 @@ export async function loadEnergySnapshot(userId: string): Promise<LoadEnergyResu
   try {
     await triggerLivePollIfConfigured(id);
     const snapshot = await getEnergySnapshot(id);
-    return { ok: true, snapshot };
+    try {
+      return { ok: true, snapshot: flightSafeSnapshot(snapshot) };
+    } catch (ser) {
+      console.error("loadEnergySnapshot serialize", ser);
+      return {
+        ok: false,
+        error: "Could not package grid data for the browser. Try again.",
+      };
+    }
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to load energy snapshot";
+    console.error("loadEnergySnapshot", e);
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Failed to load energy snapshot",
+      error: msg,
     };
   }
 }

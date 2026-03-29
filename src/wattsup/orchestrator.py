@@ -12,6 +12,7 @@ from wattsup.db import (
     enrich_and_insert,
     fetch_latest_good_fuel_mix,
     fetch_recent_scores,
+    fetch_user_stats_totals,
     get_alert_state_collection,
     get_collection,
     ideal_price_should_notify,
@@ -205,6 +206,14 @@ def run_energy_poll(user_id: str, settings: Settings, *, dry_run: bool = False) 
         extras["social_message"] = ctx.llm_analysis
 
     if not dry_run and coll is not None:
+        try:
+            st = fetch_user_stats_totals(settings, user_id)
+            if st.get("total_dollars_saved") is not None:
+                extras["total_dollars_saved"] = st["total_dollars_saved"]
+            if st.get("total_carbon_saved_kg") is not None:
+                extras["total_carbon_saved_kg"] = st["total_carbon_saved_kg"]
+        except Exception:
+            pass
         enrich_and_insert(coll, doc, extras)
 
     ctx.notify = notify
