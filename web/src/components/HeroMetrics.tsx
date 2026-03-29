@@ -1,5 +1,6 @@
 "use client";
 
+import { displayScoreInt } from "@/lib/display-score";
 import type { EnergySnapshot } from "@/types/energy";
 import { InfoModal } from "./InfoModal";
 
@@ -25,7 +26,7 @@ export function HeroMetrics({
   avg24h,
   loading,
 }: HeroMetricsProps) {
-  const pct = snapshot ? Math.round(snapshot.dialPercent) : null;
+  const pct = snapshot ? displayScoreInt(snapshot.dialPercent) : null;
   const saved = snapshot?.stats.total_dollars_saved ?? 0;
   const cleanLabel = cleanScoreContextLabel(snapshot?.ecoZScore);
 

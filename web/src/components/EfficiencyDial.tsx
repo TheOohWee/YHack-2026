@@ -1,5 +1,6 @@
 "use client";
 
+import { displayScoreInt } from "@/lib/display-score";
 import type { EnergySnapshot } from "@/types/energy";
 import {
   PolarAngleAxis,
@@ -11,13 +12,15 @@ const FILL = "#5a8f6a";
 const TRACK = "#e5e1d9";
 
 export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
-  const pct = Math.round(snapshot.dialPercent);
-  const score = snapshot.latest?.eco_efficiency_score ?? 0;
+  const pct = displayScoreInt(snapshot.dialPercent) ?? 0;
+  const detailIndex =
+    displayScoreInt(snapshot.latest?.eco_efficiency_score ?? null) ?? 0;
+  const zDisplay = displayScoreInt(snapshot.ecoZScore);
   const data = [{ name: "efficiency", value: pct, fill: FILL }];
 
   return (
     <div className="flex h-full min-h-[260px] flex-col rounded-xl">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-semibold text-[var(--text)]">
           How clean was your timing?
         </h2>
@@ -28,12 +31,12 @@ export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
       <p className="mb-4 text-base text-[var(--text-muted)]">
         We mix renewables and price into one score so you can see progress at a
         glance.
-        {snapshot.ecoZScore != null ? (
+        {zDisplay != null ? (
           <>
             {" "}
             Compared with your recent days:{" "}
             <span className="tabular-nums text-[var(--text-secondary)]">
-              {snapshot.ecoZScore.toFixed(2)}
+              {zDisplay}
             </span>
             .
           </>
@@ -65,7 +68,7 @@ export function EfficiencyDial({ snapshot }: { snapshot: EnergySnapshot }) {
               {pct}%
             </p>
             <p className="mt-1 text-2xl font-medium tabular-nums text-[var(--accent)]">
-              {score >= 1000 ? score.toExponential(2) : score.toFixed(1)}
+              {detailIndex}
             </p>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
               Detail index

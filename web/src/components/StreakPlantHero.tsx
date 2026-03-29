@@ -1,5 +1,6 @@
 "use client";
 
+import { displayScoreInt } from "@/lib/display-score";
 import { DEMO_GREEN_STREAK_FALLBACK } from "@/lib/demo-streak";
 import type { GreenStreakState } from "@/types/energy";
 import { CalendarDays, Flame, Leaf } from "lucide-react";
@@ -62,6 +63,8 @@ export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
   const longest = data.longestStreak;
   const leafDays = Math.max(0, data.streakCalendarDays);
   const lastGreen = data.lastPollWasGreen;
+  const lastEcoInt = displayScoreInt(data.lastEcoScore);
+  const medianInt = displayScoreInt(data.rollingMedianAtPoll);
 
   return (
     <section
@@ -169,12 +172,10 @@ export function StreakPlantHero({ streak, loading }: StreakPlantHeroProps) {
                     ? "Above your median — nice."
                     : "At or below your median."}
                 </span>
-                {data.rollingMedianAtPoll != null &&
-                data.lastEcoScore != null ? (
+                {lastEcoInt != null && medianInt != null ? (
                   <span className="text-[var(--text-muted)]">
                     {" "}
-                    (score {data.lastEcoScore.toFixed(1)} vs median{" "}
-                    {data.rollingMedianAtPoll.toFixed(1)})
+                    (score {lastEcoInt} vs median {medianInt})
                   </span>
                 ) : null}
               </p>

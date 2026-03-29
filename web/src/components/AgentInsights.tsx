@@ -1,5 +1,6 @@
 "use client";
 
+import { displayScoreInt } from "@/lib/display-score";
 import { parseInsightActions } from "@/lib/insight-actions";
 import { useMemo } from "react";
 
@@ -13,6 +14,7 @@ export function AgentInsights({
   fromLlm?: boolean;
 }) {
   const cards = useMemo(() => parseInsightActions(text, 3), [text]);
+  const ecoZInt = displayScoreInt(ecoZScore);
 
   return (
     <div className="flex h-full flex-col">
@@ -31,11 +33,11 @@ export function AgentInsights({
         </span>
       </div>
       <p className="mb-4 text-base text-[var(--text-muted)]">
-        {ecoZScore != null && Number.isFinite(ecoZScore) ? (
+        {ecoZInt != null ? (
           <>
             Your recent clean-power balance sits about{" "}
             <span className="tabular-nums font-medium text-[var(--text-secondary)]">
-              {ecoZScore.toFixed(2)}
+              {ecoZInt}
             </span>{" "}
             standard deviations from your usual pattern — here are focused
             moves you can try.

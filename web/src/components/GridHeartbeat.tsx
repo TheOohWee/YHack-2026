@@ -1,6 +1,9 @@
 "use client";
 
-import { decimateLogsByTimeGap } from "@/lib/quant-compute";
+import {
+  decimateLogsByTimeGap,
+  normalizeFuelMixPointForDisplay,
+} from "@/lib/quant-compute";
 import type { EnergySnapshot } from "@/types/energy";
 import {
   Area,
@@ -15,6 +18,7 @@ import {
 } from "recharts";
 import { FuelMixTooltip } from "./FuelMixTooltip";
 import { SkeletonChart } from "./SkeletonChart";
+import { WindSolarTooltip } from "./WindSolarTooltip";
 
 const GRID_STROKE = "#d8d4cc";
 const AXIS = "#6f7a72";
@@ -37,10 +41,13 @@ export function GridHeartbeat({
   }
 
   const chartLogs = decimateLogsByTimeGap(snapshot.logs);
-  const data = chartLogs.map((l) => ({
-    ...l,
-    clean_share: Math.min(100, l.wind + l.solar),
-  }));
+  const data = chartLogs.map((l) => {
+    const n = normalizeFuelMixPointForDisplay(l);
+    return {
+      ...n,
+      clean_share: Math.min(100, n.wind + n.solar),
+    };
+  });
 
   if (data.length === 0) {
     return (
@@ -63,7 +70,7 @@ export function GridHeartbeat({
         </p>
         <div className="mt-4 h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 6" stroke={GRID_STROKE} vertical={false} />
               <XAxis
                 dataKey="timestamp"
@@ -85,6 +92,10 @@ export function GridHeartbeat({
                 domain={[0, 100]}
                 tickFormatter={(v) => `${v}%`}
                 width={44}
+              />
+              <Tooltip
+                content={<WindSolarTooltip />}
+                cursor={{ stroke: GRID_STROKE, strokeWidth: 1 }}
               />
               <Line
                 type="monotone"
@@ -171,7 +182,10 @@ export function GridHeartbeat({
               tickFormatter={(v) => `${v}%`}
               width={40}
             />
-            <Tooltip content={<FuelMixTooltip />} />
+            <Tooltip
+              content={<FuelMixTooltip />}
+              cursor={{ stroke: GRID_STROKE, strokeWidth: 1 }}
+            />
             <Area
               type="monotone"
               dataKey="coal"

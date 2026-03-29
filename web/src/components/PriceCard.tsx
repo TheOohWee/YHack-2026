@@ -1,5 +1,6 @@
 "use client";
 
+import { displayScoreInt } from "@/lib/display-score";
 import { Zap } from "lucide-react";
 
 export function PriceCard({
@@ -13,6 +14,7 @@ export function PriceCard({
   pulseAmber: boolean;
   zScore: number | null;
 }) {
+  const zInt = displayScoreInt(zScore);
   return (
     <div
       className={`rounded-[var(--radius-card)] border px-5 py-5 transition-shadow ${
@@ -51,7 +53,7 @@ export function PriceCard({
           <p className="mt-1">
             Compared with recent window:{" "}
             <span className="tabular-nums text-[var(--text)]">
-              {zScore != null ? zScore.toFixed(2) : "—"}
+              {zInt != null ? zInt : "—"}
             </span>
           </p>
         </div>

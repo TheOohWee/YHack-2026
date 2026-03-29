@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { formatChatPlainText } from "@/lib/format-chat-plain";
+import { displayScoreInt } from "@/lib/display-score";
 import { getDb } from "@/lib/mongodb";
 
 /** Chat uses the fast OpenAI-compatible gateway (K2V2 / Lava); bill analysis uses K2 Think v2 separately. */
@@ -112,8 +113,8 @@ async function getGridContext(userId: string): Promise<string> {
 - Renewable energy: ${renewablePct !== null ? renewablePct.toFixed(1) + "%" : "unavailable"}
 - Fuel mix: nuclear ${(fuel.nuclear ?? 0).toFixed(1)}%, coal ${(fuel.coal ?? 0).toFixed(1)}%, natural gas ${(fuel.natural_gas ?? 0).toFixed(1)}%, wind ${(fuel.wind ?? 0).toFixed(1)}%, solar ${(fuel.solar ?? 0).toFixed(1)}%, battery ${(fuel.battery_storage ?? 0).toFixed(1)}%, imports ${(fuel.imports ?? 0).toFixed(1)}%
 - Grid demand: ${demandMw !== null ? demandMw.toFixed(0) + " MW" : "unavailable"}
-- Eco-efficiency score: ${ecoScore !== null ? ecoScore.toFixed(1) : "unavailable"}
-- Z-score (vs recent history): ${zScore !== null ? zScore.toFixed(2) : "unavailable"}
+- Eco-efficiency score: ${displayScoreInt(ecoScore) ?? "unavailable"}
+- Z-score (vs recent history): ${displayScoreInt(zScore) ?? "unavailable"}
 - User total carbon saved: ${Number(carbonSaved).toFixed(1)} kg
 - User total dollars saved: $${dollarsSaved.toFixed(2)}`;
   } catch {

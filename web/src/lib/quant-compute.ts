@@ -2,6 +2,61 @@ import type { EnergyLogPoint } from "@/types/energy";
 
 const HOUR_MS = 60 * 60 * 1000;
 
+const FUEL_MIX_KEYS: (keyof Pick<
+  EnergyLogPoint,
+  | "nuclear"
+  | "coal"
+  | "natural_gas"
+  | "wind"
+  | "solar"
+  | "battery_storage"
+  | "imports"
+  | "other"
+>)[] = [
+  "nuclear",
+  "coal",
+  "natural_gas",
+  "wind",
+  "solar",
+  "battery_storage",
+  "imports",
+  "other",
+];
+
+/**
+ * Rescale granular fuel shares so they sum to 100% for stacked charts / tooltips.
+ * Preserves non-fuel fields (price, timestamps, scores). Clamps each segment to [0, 100].
+ */
+export function normalizeFuelMixPointForDisplay(l: EnergyLogPoint): EnergyLogPoint {
+  const raw = FUEL_MIX_KEYS.map((k) => {
+    const v = l[k];
+    return typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : 0;
+  });
+  const sum = raw.reduce((a, b) => a + b, 0);
+  if (sum <= 0) {
+    const cleared = { ...l };
+    for (const k of FUEL_MIX_KEYS) cleared[k] = 0;
+    return cleared;
+  }
+  const scale = 100 / sum;
+  const scaled = raw.map((v) => v * scale);
+  const total = scaled.reduce((a, b) => a + b, 0);
+  const drift = 100 - total;
+  if (Math.abs(drift) > 1e-12) {
+    let maxI = 0;
+    for (let i = 1; i < scaled.length; i++) {
+      if (scaled[i]! > scaled[maxI]!) maxI = i;
+    }
+    scaled[maxI] = Math.min(100, Math.max(0, scaled[maxI]! + drift));
+  }
+  const out = { ...l };
+  for (let i = 0; i < FUEL_MIX_KEYS.length; i++) {
+    const k = FUEL_MIX_KEYS[i]!;
+    out[k] = Math.min(100, Math.max(0, scaled[i]!));
+  }
+  return out;
+}
+
 /**
  * For charts: keep the most recent point, then walk backward and only keep a point
  * if it is at least `minGapMs` older than the last kept point (reduces stacked/overdense polls).
