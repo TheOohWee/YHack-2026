@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { formatChatPlainText } from "@/lib/format-chat-plain";
 import { getDb } from "@/lib/mongodb";
 
 const K2_ENDPOINT =
@@ -9,23 +10,11 @@ const K2_ENDPOINT =
 const K2_MODEL = process.env.K2_MODEL || "MBZUAI-IFM/K2-Think-v2";
 const K2_API_KEY = process.env.K2_API_KEY || "";
 
-const BILL_ANALYSIS_PROMPT = `You are WattsUp AI. Extract and summarize an electricity bill. Be concise — no fluff, no reasoning, no preamble.
+const BILL_ANALYSIS_PROMPT = `You are WattsUp AI, a quick energy bill advisor. Summarize an electricity bill in 2-4 short paragraphs of plain text.
 
-Reply in EXACTLY this format (fill in the brackets):
+Include the key numbers: billing period, provider, total due, kWh used, effective rate per kWh. Compare their rate to the ComEd average of about 8 cents/kWh. Give 1-2 specific savings tips with estimated dollar savings derived from their actual usage and rate. End with a one-sentence verdict on whether they are overpaying.
 
-**Period:** [billing period]
-**Provider:** [provider name]
-**Total Due:** $[amount]
-**Usage:** [kWh] kWh ([high/average/low] for Illinois)
-**Your Rate:** [X] ¢/kWh ([above/below/near] ComEd avg of ~8 ¢/kWh)
-
-**Top Savings Tips:**
-1. [specific tip] — save ~$[amount]/mo
-2. [specific tip] — save ~$[amount]/mo
-
-**Verdict:** [one sentence — are they overpaying, doing fine, etc.]
-
-If you cannot extract a field from the bill text, write "not found". Never make up numbers.`;
+Keep it concise and conversational. Use plain language — no jargon. Do not use Markdown: no ** or # for emphasis/headings, no [text](url) links, no backticks. For lists use "1) " and "2) " format. Round numbers to 1 decimal place. If you cannot find a number in the bill, say "not found" — never make up numbers.`;
 
 async function extractBillText(req: NextRequest): Promise<{ billText: string; userId: string } | NextResponse> {
   const ct = req.headers.get("content-type") || "";
@@ -166,7 +155,7 @@ export async function POST(req: NextRequest) {
         messages,
         temperature: 0.3,
         max_tokens: 512,
-        stream: true,
+        stream: false,
       }),
     });
 
@@ -178,78 +167,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        const reader = res.body!.getReader();
-        let insideThink = false;
-        let buffer = "";
+    const data = await res.json();
+    let content: string =
+      data?.choices?.[0]?.message?.content ?? "No response from K2.";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+    // Strip <think> reasoning tags — keep only the final answer
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, "");
+    content = content.replace(/<think>[\s\S]*/g, "");
+    content = content.replace(/[\s\S]*<\/think>/g, "");
+    content = content.trim();
+    content = formatChatPlainText(content);
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              const token: string = parsed.choices?.[0]?.delta?.content ?? "";
-              if (!token) continue;
-
-              buffer += token;
-
-              while (true) {
-                if (insideThink) {
-                  const closeIdx = buffer.indexOf("</think>");
-                  if (closeIdx === -1) {
-                    buffer = "";
-                    break;
-                  }
-                  buffer = buffer.slice(closeIdx + 8);
-                  insideThink = false;
-                } else {
-                  const openIdx = buffer.indexOf("<think>");
-                  if (openIdx === -1) {
-                    const safe = buffer.length > 7 ? buffer.slice(0, -7) : "";
-                    if (safe) {
-                      controller.enqueue(encoder.encode(safe));
-                      buffer = buffer.slice(safe.length);
-                    }
-                    break;
-                  }
-                  const before = buffer.slice(0, openIdx);
-                  if (before) controller.enqueue(encoder.encode(before));
-                  buffer = buffer.slice(openIdx + 7);
-                  insideThink = true;
-                }
-              }
-            } catch {
-              // skip malformed SSE chunks
-            }
-          }
-        }
-
-        if (!insideThink && buffer) {
-          controller.enqueue(encoder.encode(buffer));
-        }
-        controller.close();
-      },
-    });
-
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
-        "Cache-Control": "no-cache",
-      },
-    });
+    return NextResponse.json({ analysis: content, model: K2_MODEL });
   } catch (e) {
     return NextResponse.json(
       { error: `K2 request failed: ${e instanceof Error ? e.message : e}` },

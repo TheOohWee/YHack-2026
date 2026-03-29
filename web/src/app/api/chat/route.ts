@@ -5,28 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { formatChatPlainText } from "@/lib/format-chat-plain";
 import { getDb } from "@/lib/mongodb";
 
-/** Chat uses the fast OpenAI-compatible gateway (K2V2 / Lava); bill analysis uses K2 Think v2 separately. */
-const CHAT_BASE_RAW =
-  process.env.K2V2_BASE_URL ||
-  process.env.LAVA_BASE_URL ||
-  process.env.K2_CHAT_BASE_URL ||
-  "";
-const CHAT_BASE = CHAT_BASE_RAW.replace(/\/$/, "");
-const CHAT_URL = CHAT_BASE
-  ? `${CHAT_BASE}/v1/chat/completions`
-  : process.env.K2_ENDPOINT ||
-    "https://api.k2think.ai/v1/chat/completions";
-const CHAT_MODEL =
-  process.env.GEMINI_FLASH_MODEL ||
-  process.env.K2_CHAT_MODEL ||
-  (CHAT_BASE
-    ? "gpt-4o-mini"
-    : process.env.K2_MODEL || "MBZUAI-IFM/K2-Think-v2");
-const CHAT_API_KEY =
-  process.env.K2V2_API_KEY ||
-  process.env.LAVA_KEY ||
-  process.env.K2_API_KEY ||
-  "";
+/** Chat is powered by K2 Think v2 (same as bill analysis). */
+const CHAT_URL =
+  process.env.K2_ENDPOINT || "https://api.k2think.ai/v1/chat/completions";
+const CHAT_MODEL = process.env.K2_MODEL || "MBZUAI-IFM/K2-Think-v2";
+const CHAT_API_KEY = process.env.K2_API_KEY || "";
 
 const SYSTEM_PROMPT = `You are WattsUp AI, a quick energy advisor. You help Illinois households save money and cut carbon using real-time electricity grid data injected below.
 
@@ -38,7 +21,7 @@ When asked about timing (when to run appliances, charge EVs, etc.), reason step-
 3. Recent trends — is it getting better or worse?
 4. Your recommendation with specific numbers
 
-Keep responses concise (2–4 short paragraphs). Be encouraging but data-driven. Use plain language, not jargon. When you cite numbers, round to 1 decimal place.
+Keep responses concise (2–4 short paragraphs). Be data-driven. Use plain language, not jargon. When you cite numbers, round to 1 decimal place. Do not give generic encouragement or praise — just state facts and give actionable advice. If a user's savings numbers are small or zero, just report them honestly; do not pretend they are an achievement.
 
 Do not use Markdown in your reply: no ** or # for emphasis/headings, no [text](url) links, no backticks. Write plain sentences; for numbered steps use "1) " and "2) ".`;
 
@@ -126,7 +109,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Chat API key not configured (set K2V2_API_KEY or K2_API_KEY and K2V2_BASE_URL for fast chat).",
+          "Chat API key not configured (set K2_API_KEY).",
       },
       { status: 503 },
     );
@@ -186,7 +169,11 @@ export async function POST(req: NextRequest) {
       data?.choices?.[0]?.message?.content ?? "No response from K2.";
 
     // Strip <think> reasoning tags — keep only the final answer
-    content = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    // Handle: <think>...</think>, unclosed <think>..., and orphaned </think>
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, "");
+    content = content.replace(/<think>[\s\S]*/g, "");
+    content = content.replace(/[\s\S]*<\/think>/g, "");
+    content = content.trim();
     content = formatChatPlainText(content);
 
     return NextResponse.json({

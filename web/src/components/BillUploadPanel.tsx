@@ -42,26 +42,13 @@ export function BillUploadPanel({ userId }: Props) {
           return;
         }
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Request failed" }));
-          setError(err.error || "Analysis failed");
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data) {
+          setError(data?.error || "Analysis failed");
           return;
         }
 
-        const reader = res.body?.getReader();
-        if (!reader) {
-          setError("No response stream");
-          return;
-        }
-        const decoder = new TextDecoder();
-        let text = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          text += decoder.decode(value, { stream: true });
-          if (text.trim()) setLoading(false);
-          setAnalysis(text);
-        }
+        setAnalysis(data.analysis);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
       } finally {
@@ -100,22 +87,13 @@ export function BillUploadPanel({ userId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ billText: pasteText, userId }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Request failed" }));
-        setError(err.error || "Analysis failed");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        setError(data?.error || "Analysis failed");
         return;
       }
-      const reader = res.body?.getReader();
-      if (!reader) { setError("No response stream"); return; }
-      const decoder = new TextDecoder();
-      let text = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        text += decoder.decode(value, { stream: true });
-        if (text.trim()) setLoading(false);
-        setAnalysis(text);
-      }
+
+      setAnalysis(data.analysis);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
